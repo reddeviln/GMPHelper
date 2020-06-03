@@ -138,13 +138,16 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		}
 		for (CTOTData test : m_sequence)
 		{
-			CString temp1 = test.flightplan.GetCallsign();
-			CString temp2 = flightplan.GetCallsign();
-			if (temp1.Compare(temp2)==0) 
-			{
-				return  i;
+			try {
+				CString temp1 = test.flightplan.GetCallsign();
+				CString temp2 = flightplan.GetCallsign();
+				if (temp1.Compare(temp2) == 0)
+				{
+					return  i;
+				}
+				i++;
 			}
-			i++;
+			catch (const std::exception &e) { continue; }
 		}
 		return -1;
 	}
@@ -175,7 +178,7 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			CString str;
 			if (idx >= 0)
 			{
-				str.Format("%d", m_sequence[idx].CTOT);
+				str.Format("%d", "");
 			}
 			// open a popup editor there
 			OpenPopupEdit(Area,
@@ -185,19 +188,32 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		}
 		case TAG_FUNC_CTOT_MANUAL_FINISH: // when finished editing
 		{
+			CTime empty,temp;
+			temp = CTime::GetCurrentTime();
+			tm t;
+			temp.GetGmtTm(&t);
+			int input = atoi(sItemString);
 			// simply save the value
 			if (idx >= 0)
 			{
-				m_sequence[idx].CTOT = atoi(sItemString);
+				try {
+					m_sequence[idx].CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0);
+					m_sequence[idx].TOBT = m_sequence[idx].CTOT - CTimeSpan(0, 0, 15, 0);
+					std::sort(m_sequence.begin(), m_sequence.end());
+				}
+				catch(const std::exception &e)
+				{ }
 				break;
 			}
-			CTOTData temp;
-			temp.flightplan = fp;
-			temp.CTOT = atoi(sItemString);
+			else {
+				CTOTData temp;
+				temp.flightplan = fp;
+				temp.CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0);
+				temp.TOBT = temp.CTOT - CTimeSpan(0, 0, 15, 0);
+				m_sequence.push_back(temp);
+				std::sort(m_sequence.begin(), m_sequence.end());
+			}
 			
-			temp.sequence = 1;
-			m_sequence.push_back(temp);
-
 			break;
 		}
 		case TAG_FUNC_CTOT_ASSIGN: // TAG function
@@ -232,8 +248,14 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 
 			// simply clear
 			if (idx < 0) break;
-			m_sequence[idx].CTOT = NULL;
-			m_sequence[idx].TOBT = NULL;
+			if (std::size(m_sequence) == idx + 1)
+			{
+				m_latestCTOT = m_sequence[idx].CTOT;
+				m_latestfp = m_sequence[idx].flightplan;
+			}
+			m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(fp))), m_sequence.end());
+			m_TOSequenceList.RemoveFpFromTheList(fp);
+			updateList();
 			break;
 
 		}// switch by the function ID
@@ -250,7 +272,7 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		
 			temp.flightplan = flightplan;
 			temp.sequence = 1;
-			ctot = time + CTimeSpan(0, 0, 30, 0);
+			ctot = time + CTimeSpan(0, 0, 20, 0);
 			tobt = ctot - CTimeSpan(0, 0, 15, 0);
 			temp.CTOT = ctot;
 			temp.TOBT = tobt;
@@ -286,6 +308,9 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 				{
 					increment = CTimeSpan(0, 0, 2, 0);
 				}
+				else {
+
+				}
 				break;
 			}
 			case 'M':
@@ -296,16 +321,16 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 				}
 				break;
 			}
-			default:
+			}
+			if (increment == NULL)
+			{
 				if (sid1 != sid2)
 				{
-					increment = CTimeSpan(0, 0, 0, 30);
+					increment = CTimeSpan(0, 0, 1, 0);
 				}
 				else
 					increment = CTimeSpan(0, 0, 2, 0);
-				break;
 			}
-			
 			temp.flightplan = flightplan;
 			temp.sequence = lastsequence+1;
 			ctot = m_latestCTOT + increment;
@@ -314,11 +339,11 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			temp.TOBT = tobt;
 			m_latestCTOT = ctot;
 			m_latestfp = flightplan;
-			
+			lastsequence++;
 		}
 
 		m_sequence.push_back(temp);
-		
+		std::sort(m_sequence.begin(), m_sequence.end());
 	}
 	void CGMPHelper::updateList()
 	{
@@ -333,8 +358,13 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			if (rt.GetGS()>80)
 			{
 				m_TOSequenceList.RemoveFpFromTheList(fp);
-				remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(fp)));
+				m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(fp))), m_sequence.end());
 			}
+		}
+		std::sort(m_sequence.begin(), m_sequence.end());
+		for (CTOTData &i : m_sequence)
+		{
+			i.sequence= _SelectAcIndex(i.flightplan)+1;
 		}
 	}
 

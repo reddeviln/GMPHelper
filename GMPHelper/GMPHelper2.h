@@ -18,7 +18,14 @@ public:
 		}
 		return false;
 	}
-	
+	bool CTOTData::operator<(const CTOTData& rhs)
+	{
+		if (this->CTOT < rhs.CTOT)
+		{
+			return true;
+		}
+		return false;
+	}
 
 };
 class CGMPHelper :
