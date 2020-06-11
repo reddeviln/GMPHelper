@@ -208,10 +208,15 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			else {
 				CTOTData temp;
 				temp.flightplan = fp;
+				try {
 				temp.CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0);
 				temp.TOBT = temp.CTOT - CTimeSpan(0, 0, 15, 0);
 				m_sequence.push_back(temp);
 				std::sort(m_sequence.begin(), m_sequence.end());
+				}
+				catch (const std::exception &e)
+				{
+				}
 			}
 			
 			break;
@@ -267,83 +272,45 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		CTime ctot;
 		CTime tobt;
 		CTOTData temp;
-		if (m_sequence.empty())
+		if (m_sequence.empty()||asap)
 		{
 		
 			temp.flightplan = flightplan;
-			temp.sequence = 1;
+			temp.sequence = -1;
 			ctot = time + CTimeSpan(0, 0, 20, 0);
 			tobt = ctot - CTimeSpan(0, 0, 15, 0);
 			temp.CTOT = ctot;
 			temp.TOBT = tobt;
-			m_latestCTOT = ctot;
-			m_latestfp = flightplan;
-			lastsequence = 1;
+			if (!asap) {
+				m_latestCTOT = ctot;
+				m_latestfp = flightplan;
+			}
 		}
 		else 
 		{
-			CTimeSpan increment;
-
-			CString sid1 = flightplan.GetFlightPlanData().GetSidName();
-			CString sid2 = m_latestfp.GetFlightPlanData().GetSidName();
-			char wtc1 = flightplan.GetFlightPlanData().GetAircraftWtc();
-			char wtc2 = m_latestfp.GetFlightPlanData().GetAircraftWtc();
-			switch (wtc1)
+			if (m_latestfp.GetCallsign() == flightplan.GetCallsign())
 			{
-			case 'J':
-			{
-				if (wtc2 == 'H')
-				{
-					increment = CTimeSpan(0, 0, 2, 0);
-				}
-				if (wtc2 == 'M'|| wtc2 =='L')
-				{
-					increment = CTimeSpan(0, 0, 3, 0);
-				}
-				break;
+				return;
 			}
-			case 'H':
-			{
-				if (wtc2 == 'M' || wtc2 == 'L')
-				{
-					increment = CTimeSpan(0, 0, 2, 0);
-				}
-				else {
-
-				}
-				break;
-			}
-			case 'M':
-			{
-				if (wtc2 == 'L')
-				{
-					increment = CTimeSpan(0, 0, 2, 0);
-				}
-				break;
-			}
-			}
-			if (increment == NULL)
-			{
-				if (sid1 != sid2)
-				{
-					increment = CTimeSpan(0, 0, 1, 0);
-				}
-				else
-					increment = CTimeSpan(0, 0, 2, 0);
-			}
+			CTimeSpan increment = getIncrement(m_latestfp, flightplan);
 			temp.flightplan = flightplan;
-			temp.sequence = lastsequence+1;
+			temp.sequence = -1;
 			ctot = m_latestCTOT + increment;
 			tobt = ctot - CTimeSpan(0, 0, 15, 0);
 			temp.CTOT = ctot;
 			temp.TOBT = tobt;
 			m_latestCTOT = ctot;
 			m_latestfp = flightplan;
-			lastsequence++;
+			
 		}
-
+		
 		m_sequence.push_back(temp);
 		std::sort(m_sequence.begin(), m_sequence.end());
+		if (asap)
+		{
+			recalculateCTOT(temp);
+		}
+
 	}
 	void CGMPHelper::updateList()
 	{
@@ -366,6 +333,81 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		{
 			i.sequence= _SelectAcIndex(i.flightplan)+1;
 		}
+	}
+
+	void CGMPHelper::recalculateCTOT(CTOTData inserted)
+		//recalculates the CTOT for each flightplan in sequence following and inculding "inserted"
+	{
+		//get the number in sequence for our inserted fp
+		auto pos = std::find(m_sequence.begin(), m_sequence.end(), inserted);
+		//safeguard if not found due to whatever 
+		if (pos == m_sequence.end())
+		{
+			return;
+		}
+		//iterate over the sequence starting from "inserted"
+		for (auto &it = pos; it != m_sequence.end(); ++it) 
+		{
+			CTOTData temp1 = *(it-1);
+			CTOTData &temp2 = *it;
+			CTimeSpan inc = getIncrement(temp1.flightplan, temp2.flightplan);
+			temp2.CTOT = temp1.CTOT + inc;
+			temp2.TOBT = temp2.CTOT - CTimeSpan(0, 0, 15, 0);
+		}
+
+	}
+	CTimeSpan CGMPHelper::getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePlugIn::CFlightPlan fp2)
+		//returns the required difference in CTOT when fp2 is trailing fp1
+	{
+		CTimeSpan increment;
+		CString sid1 = fp1.GetFlightPlanData().GetSidName();
+		CString sid2 = fp2.GetFlightPlanData().GetSidName();
+		char wtc1 = fp1.GetFlightPlanData().GetAircraftWtc();
+		char wtc2 = fp2.GetFlightPlanData().GetAircraftWtc();
+		switch (wtc1)
+		{
+		case 'J':
+		{
+			if (wtc2 == 'H')
+			{
+				increment = CTimeSpan(0, 0, 2, 0);
+			}
+			if (wtc2 == 'M' || wtc2 == 'L')
+			{
+				increment = CTimeSpan(0, 0, 3, 0);
+			}
+			break;
+		}
+		case 'H':
+		{
+			if (wtc2 == 'M' || wtc2 == 'L')
+			{
+				increment = CTimeSpan(0, 0, 2, 0);
+			}
+			else {
+
+			}
+			break;
+		}
+		case 'M':
+		{
+			if (wtc2 == 'L')
+			{
+				increment = CTimeSpan(0, 0, 2, 0);
+			}
+			break;
+		}
+		}
+		if (increment == NULL)
+		{
+			if (sid1 != sid2)
+			{
+				increment = CTimeSpan(0, 0, 1, 0);
+			}
+			else
+				increment = CTimeSpan(0, 0, 2, 0);
+		}
+		return increment;
 	}
 
 

@@ -70,9 +70,6 @@ PROVIDER_URL:http://vatme.net/files/Sectors/VATME_sector_Provider.txt
 PROVIDER_NAME:AeroNav GNG Sector File Provider
 PROVIDER_URL:http://files.aero-nav.com/AeroNav_sector_provider.txt
 
-PROVIDER_NAME:LECB-LECM-GCCC sectorfiles - Vatsim Spain
-PROVIDER_URL:http://www.vatspa.es/sectorfiles/VATSPA FIR sectorfiles.txt
-
 PROVIDER_NAME:Cuba vACC Sector Files Provider
 PROVIDER_URL:http://havana.vatcar.org/es/mufh_sector_files.txt
 

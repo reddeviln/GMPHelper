@@ -61,4 +61,6 @@ public:
 
 	void assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan);
 	void CGMPHelper::updateList();
+	CTimeSpan CGMPHelper::getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePlugIn::CFlightPlan fp2);
+	void CGMPHelper::recalculateCTOT(CTOTData inserted);
 };
