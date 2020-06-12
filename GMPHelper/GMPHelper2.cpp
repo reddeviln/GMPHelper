@@ -295,7 +295,7 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			CTimeSpan increment = getIncrement(m_latestfp, flightplan);
 			temp.flightplan = flightplan;
 			temp.sequence = -1;
-			ctot = m_latestCTOT + increment;
+			ctot = max(time + CTimeSpan(0, 0, 20, 0), m_latestCTOT + increment);
 			tobt = ctot - CTimeSpan(0, 0, 15, 0);
 			temp.CTOT = ctot;
 			temp.TOBT = tobt;
