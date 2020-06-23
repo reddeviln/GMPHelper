@@ -52,10 +52,10 @@ CGMPHelper::CGMPHelper(void)
 		m_TOSequenceList.AddColumnDefinition("C/S", 10, true, NULL, EuroScopePlugIn::TAG_ITEM_TYPE_CALLSIGN,
 			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
 			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
-		m_TOSequenceList.AddColumnDefinition("CTOT", 4, true, NULL, TAG_ITEM_CTOT,
+		m_TOSequenceList.AddColumnDefinition("CTOT", 4, true, MY_PLUGIN_NAME, TAG_ITEM_CTOT,
 			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
 			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
-		m_TOSequenceList.AddColumnDefinition("#", 2, true, NULL, TAG_ITEM_Sequence,
+		m_TOSequenceList.AddColumnDefinition("#", 2, true, MY_PLUGIN_NAME, TAG_ITEM_Sequence,
 			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
 			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
 		m_TOSequenceList.AddColumnDefinition("W", 1, true, NULL, EuroScopePlugIn::TAG_ITEM_TYPE_AIRCRAFT_CATEGORY,
@@ -72,71 +72,71 @@ CGMPHelper::~CGMPHelper(void)
 {
 }
 
-void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
-	EuroScopePlugIn::CRadarTarget RadarTarget,
-	int ItemCode,
-	int TagData,
-	char sItemString[16],
-	int * pColorCode,
-	COLORREF * pRGB,
-	double * pFontSize)
-{
-	int     idx;
-
-
-	// only for flight plans
-	if (!FlightPlan.IsValid())
-		return;
-
-	// get the AC index
-	if ((idx = _SelectAcIndex(FlightPlan)) < 0)
-		return;
-
-	// switch by the code
-	switch (ItemCode)
+	void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
+		EuroScopePlugIn::CRadarTarget RadarTarget,
+		int ItemCode,
+		int TagData,
+		char sItemString[16],
+		int * pColorCode,
+		COLORREF * pRGB,
+		double * pFontSize)
 	{
-	case TAG_ITEM_CTOT:
-	{	
-		CTime CTOT = m_sequence[idx].CTOT;
-		CString temp1;
-		tm t;
-		CTOT.GetGmtTm(&t);
-		temp1.Format("%.4d", t.tm_hour*100+t.tm_min);
-		strcpy(sItemString, temp1);
+		int     idx;
+
+
+		// only for flight plans
+		if (!FlightPlan.IsValid())
+			return;
+
+		// get the AC index
+		if ((idx = _SelectAcIndex(FlightPlan)) < 0)
+			return;
+
+		// switch by the code
+		switch (ItemCode)
+		{
+		case TAG_ITEM_CTOT:
+		{	
+			CTime CTOT = m_sequence[idx].CTOT;
+			CString temp1;
+			tm t;
+			CTOT.GetGmtTm(&t);
+			temp1.Format("%.4d", t.tm_hour*100+t.tm_min);
+			strcpy(sItemString, temp1);
+			updateList();
+			break; 
+		}
+
+		case TAG_ITEM_TOBT:
+		{
+			CTime TOBT = m_sequence[idx].TOBT;
+			CString temp1;
+			tm t;
+			TOBT.GetGmtTm(&t);
+			temp1.Format("%.4d", t.tm_hour * 100 + t.tm_min);
+			strcpy(sItemString, temp1);
+			break;
+		}
+		case TAG_ITEM_Sequence:
+		{
+			int seq = m_sequence[idx].sequence;
+			CString temp3;
+			temp3.Format("%d", seq);
+			strcpy(sItemString, temp3);
+			break;
+		}
+		}
+	}// switch by the code
+
+	void CGMPHelper::OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan)
+	{
+		int idx = _SelectAcIndex(FlightPlan);
+		if (idx < 0) return;
+		m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(FlightPlan))), m_sequence.end());
+		m_TOSequenceList.RemoveFpFromTheList(FlightPlan);
 		updateList();
-		break; 
 	}
-
-	case TAG_ITEM_TOBT:
-	{
-		CTime TOBT = m_sequence[idx].TOBT;
-		CString temp1;
-		tm t;
-		TOBT.GetGmtTm(&t);
-		temp1.Format("%.4d", t.tm_hour * 100 + t.tm_min);
-		strcpy(sItemString, temp1);
-		break;
-	}
-	case TAG_ITEM_Sequence:
-	{
-		int seq = m_sequence[idx].sequence;
-		CString temp3;
-		temp3.Format("%d", seq);
-		strcpy(sItemString, temp3);
-		break;
-	}
-	}
-}// switch by the code
-
-void CGMPHelper::OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan)
-{
-	int idx = _SelectAcIndex(FlightPlan);
-	if (idx < 0) return;
-	m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(FlightPlan))), m_sequence.end());
-	m_TOSequenceList.RemoveFpFromTheList(FlightPlan);
-	updateList();
-}
-inline  bool    CGMPHelper::OnCompileCommand(const char * sCommandLine)
+	inline  bool CGMPHelper::OnCompileCommand(const char * sCommandLine)
 {
 	if (std::strcmp(sCommandLine, ".showtolist") == 0)
 	{
