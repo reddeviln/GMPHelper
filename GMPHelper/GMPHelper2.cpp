@@ -128,6 +128,24 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 	}
 }// switch by the code
 
+void CGMPHelper::OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan)
+{
+	int idx = _SelectAcIndex(FlightPlan);
+	if (idx < 0) return;
+	m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(FlightPlan))), m_sequence.end());
+	m_TOSequenceList.RemoveFpFromTheList(FlightPlan);
+	updateList();
+}
+inline  bool    CGMPHelper::OnCompileCommand(const char * sCommandLine)
+{
+	if (std::strcmp(sCommandLine, ".showtolist") == 0)
+	{
+		m_TOSequenceList.ShowFpList(true);
+		return true;
+	}
+	return false;
+}
+
 	int     CGMPHelper::_SelectAcIndex(EuroScopePlugIn::CFlightPlan flightplan)
 	{
 		// search
@@ -175,15 +193,11 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		{
 		case TAG_FUNC_CTOT_MANUAL: // TAG function
 		{
-			CString str;
-			if (idx >= 0)
-			{
-				str.Format("%d", "");
-			}
+			
 			// open a popup editor there
 			OpenPopupEdit(Area,
 				TAG_FUNC_CTOT_MANUAL_FINISH,
-				str);
+				"");
 		break;
 		}
 		case TAG_FUNC_CTOT_MANUAL_FINISH: // when finished editing
@@ -193,28 +207,33 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			tm t;
 			temp.GetGmtTm(&t);
 			int input = atoi(sItemString);
+			int test = input - (input / 100) * 100;
+			if (input >= 2400 || test >= 60) break;
 			// simply save the value
 			if (idx >= 0)
 			{
 				try {
 					m_sequence[idx].CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0);
 					m_sequence[idx].TOBT = m_sequence[idx].CTOT - CTimeSpan(0, 0, 15, 0);
+					m_sequence[idx].manual = true;
 					std::sort(m_sequence.begin(), m_sequence.end());
+
 				}
-				catch(const std::exception &e)
+				catch(...)
 				{ }
 				break;
 			}
 			else {
-				CTOTData temp;
-				temp.flightplan = fp;
+				CTOTData temp1;
+				temp1.flightplan = fp;
 				try {
-				temp.CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0);
-				temp.TOBT = temp.CTOT - CTimeSpan(0, 0, 15, 0);
-				m_sequence.push_back(temp);
+				temp1.CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0);
+				temp1.TOBT = temp1.CTOT - CTimeSpan(0, 0, 15, 0);
+				temp1.manual = true;
+				m_sequence.push_back(temp1);
 				std::sort(m_sequence.begin(), m_sequence.end());
 				}
-				catch (const std::exception &e)
+				catch (...)
 				{
 				}
 			}
@@ -253,11 +272,6 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 
 			// simply clear
 			if (idx < 0) break;
-			if (std::size(m_sequence) == idx + 1)
-			{
-				m_latestCTOT = m_sequence[idx].CTOT;
-				m_latestfp = m_sequence[idx].flightplan;
-			}
 			m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(fp))), m_sequence.end());
 			m_TOSequenceList.RemoveFpFromTheList(fp);
 			updateList();
@@ -281,26 +295,19 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			tobt = ctot - CTimeSpan(0, 0, 15, 0);
 			temp.CTOT = ctot;
 			temp.TOBT = tobt;
-			if (!asap) {
-				m_latestCTOT = ctot;
-				m_latestfp = flightplan;
-			}
+			
 		}
 		else 
 		{
-			if (m_latestfp.GetCallsign() == flightplan.GetCallsign())
-			{
-				return;
-			}
-			CTimeSpan increment = getIncrement(m_latestfp, flightplan);
+			CTOTData &end = *(m_sequence.end()-1);
+			CTimeSpan increment = getIncrement(end.flightplan, flightplan);
 			temp.flightplan = flightplan;
 			temp.sequence = -1;
-			ctot = max(time + CTimeSpan(0, 0, 20, 0), m_latestCTOT + increment);
+			ctot = max(time + CTimeSpan(0, 0, 20, 0), end.CTOT + increment);
 			tobt = ctot - CTimeSpan(0, 0, 15, 0);
 			temp.CTOT = ctot;
 			temp.TOBT = tobt;
-			m_latestCTOT = ctot;
-			m_latestfp = flightplan;
+			
 			
 		}
 		
@@ -350,6 +357,7 @@ void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		{
 			CTOTData temp1 = *(it-1);
 			CTOTData &temp2 = *it;
+			if (temp2.manual) continue;
 			CTimeSpan inc = getIncrement(temp1.flightplan, temp2.flightplan);
 			temp2.CTOT = temp1.CTOT + inc;
 			temp2.TOBT = temp2.CTOT - CTimeSpan(0, 0, 15, 0);
