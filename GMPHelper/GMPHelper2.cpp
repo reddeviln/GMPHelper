@@ -4,6 +4,7 @@
 #include <string>
 #include <ctime>
 #include <algorithm>
+#include <regex>
 
 
 
@@ -90,7 +91,34 @@ CGMPHelper::~CGMPHelper(void)
 
 		// get the AC index
 		if ((idx = _SelectAcIndex(FlightPlan)) < 0)
+		{
+			auto fpdata = FlightPlan.GetFlightPlanData();
+			auto cadata = FlightPlan.GetControllerAssignedData();
+			auto scratch = cadata.GetScratchPadString();
+			const char* test = NULL;
+			test = strstr(scratch, "/CTOT");
+			if (test)
+			{
+				auto ctot = fpdata.GetEstimatedDepartureTime();
+				CTOTData newone;
+				CTime temp;
+				temp = CTime::GetCurrentTime();
+				tm t,t1;
+				temp.GetGmtTm(&t);
+				temp.GetLocalTm(&t1);
+				CTimeSpan diff = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)- CTime(1900 + t1.tm_year, t1.tm_mon + 1, t1.tm_mday, t1.tm_hour, t1.tm_min, t1.tm_sec);
+				int input = atoi(ctot);
+				int test = input - (input / 100) * 100;
+				if (input >= 2400 || test >= 60) return;
+				newone.CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0) - diff;
+				newone.flightplan = FlightPlan;
+				newone.TOBT = newone.CTOT - CTimeSpan(0, 0, 15, 0);
+				m_sequence.push_back(newone);
+				std::sort(m_sequence.begin(), m_sequence.end());
+			}
 			return;
+		}
+
 
 		// switch by the code
 		switch (ItemCode)
@@ -202,7 +230,7 @@ CGMPHelper::~CGMPHelper(void)
 		}
 		case TAG_FUNC_CTOT_MANUAL_FINISH: // when finished editing
 		{
-			CTime empty,temp;
+			CTime temp;
 			temp = CTime::GetCurrentTime();
 			tm t;
 			temp.GetGmtTm(&t);
@@ -257,21 +285,71 @@ CGMPHelper::~CGMPHelper(void)
 			break;
 
 		case TAG_FUNC_CTOT_ASSIGN_SEQ: // a value is selected from the popup list
-
+		{
+			if (idx>=0) return;
+			auto data = fp.GetControllerAssignedData();
+			auto scratch = data.GetScratchPadString();
+			const char* test = NULL;
+			std::string temp = scratch;
+			test = strstr(scratch, "/CTOT");
+			if (!test)
+			{
+				std::string temp;
+				temp = scratch;
+				temp += "/CTOT";
+				data.SetScratchPadString(temp.c_str());
+			}
 			CGMPHelper::assignCTOT(false, fp);
-
+			idx = _SelectAcIndex(fp);
+			auto fpdata = fp.GetFlightPlanData();
+			tm t;
+			m_sequence[idx].CTOT.GetGmtTm(&t);
+			std::string temp1;
+			temp1 = std::to_string(t.tm_hour);
+			temp1 += std::to_string(t.tm_min);
+			fpdata.SetEstimatedDepartureTime(temp1.c_str());
 			break;
-
+		}
 		case TAG_FUNC_CTOT_ASSIGN_ASAP: // a value is selected from the popup list
-
+		{
+			if (idx>=0) return;
+			auto data = fp.GetControllerAssignedData();
+			auto scratch = data.GetScratchPadString();
+			const char* test = NULL;
+			std::string temp = scratch;
+			test = strstr(scratch, "/CTOT");
+			if (!test)
+			{
+				std::string temp;
+				temp = scratch;
+				temp += "/CTOT";
+				data.SetScratchPadString(temp.c_str());
+			}
 			CGMPHelper::assignCTOT(true, fp);
-
+			idx = _SelectAcIndex(fp);
+			auto fpdata = fp.GetFlightPlanData();
+			tm t;
+			m_sequence[idx].CTOT.GetGmtTm(&t);
+			std::string temp1;
+			temp1 = std::to_string(t.tm_hour);
+			temp1 += std::to_string(t.tm_min);
+			fpdata.SetEstimatedDepartureTime(temp1.c_str());
 			break;
-
+		}
 		case TAG_FUNC_CTOT_CLEAR: // clear the waiting time
 
 			// simply clear
 			if (idx < 0) break;
+			auto cadata = fp.GetControllerAssignedData();
+			auto scratch = cadata.GetScratchPadString();
+			const char* test = NULL;
+			std::string temp= scratch;
+			test = strstr(scratch, "/CTOT");
+			if (test)
+			{
+				temp = std::regex_replace(temp, std::regex("\\/CTOT"), "");
+				cadata.SetScratchPadString(temp.c_str());
+			}
 			m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(fp))), m_sequence.end());
 			m_TOSequenceList.RemoveFpFromTheList(fp);
 			updateList();
@@ -353,7 +431,7 @@ CGMPHelper::~CGMPHelper(void)
 			return;
 		}
 		//iterate over the sequence starting from "inserted"
-		for (auto &it = pos; it != m_sequence.end(); ++it) 
+		for (auto &it = pos+1; it != m_sequence.end(); ++it) 
 		{
 			CTOTData temp1 = *(it-1);
 			CTOTData &temp2 = *it;
