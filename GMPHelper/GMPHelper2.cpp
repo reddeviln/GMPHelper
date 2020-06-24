@@ -467,7 +467,11 @@ void CGMPHelper::updateList()
 		//if any aircraft takes off remove it automatically
 		auto fp = i.flightplan;
 		EuroScopePlugIn::CRadarTarget rt = fp.GetCorrelatedRadarTarget();
-		if (rt.GetGS() > 80)
+		auto cad = fp.GetControllerAssignedData();
+		auto scratch = cad.GetScratchPadString();
+		const char* test = NULL;
+		test = strstr(scratch, "/CTOT");
+		if (rt.GetGS() > 80||!test)
 		{
 			m_TOSequenceList.RemoveFpFromTheList(fp);
 			m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(fp))), m_sequence.end());
