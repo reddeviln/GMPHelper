@@ -182,6 +182,7 @@ void CGMPHelper::OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan)
 	m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(idx)), m_sequence.end());
 	m_TOSequenceList.RemoveFpFromTheList(FlightPlan);
 	updateList();
+	recalculateCTOT(*(m_sequence.begin()));
 }
 inline  bool CGMPHelper::OnCompileCommand(const char * sCommandLine)
 {
@@ -308,10 +309,9 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 		auto fpdata = fp.GetFlightPlanData();
 		tm t2;
 		m_sequence[idx].CTOT.GetGmtTm(&t2);
-		std::string temp1;
-		temp1 = std::to_string(t2.tm_hour);
-		temp1 += std::to_string(t2.tm_min);
-		fpdata.SetEstimatedDepartureTime(temp1.c_str());
+		CString cstring;
+		cstring.Format("%.4d", t2.tm_hour * 100 + t2.tm_min);
+		fpdata.SetEstimatedDepartureTime(cstring);
 		//we recalculate the CTOT for all aircraft in sequence after the manually assigned one
 		recalculateCTOT(m_sequence[idx]);
 		break;
@@ -356,10 +356,9 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 		auto fpdata = fp.GetFlightPlanData();
 		tm t;
 		m_sequence[idx].CTOT.GetGmtTm(&t);
-		std::string temp1;
-		temp1 = std::to_string(t.tm_hour);
-		temp1 += std::to_string(t.tm_min);
-		fpdata.SetEstimatedDepartureTime(temp1.c_str());
+		CString cstring;
+		cstring.Format("%.4d", t.tm_hour * 100 + t.tm_min);
+		fpdata.SetEstimatedDepartureTime(cstring);
 		break;
 	}
 	case TAG_FUNC_CTOT_ASSIGN_ASAP: // user selected asap
@@ -383,10 +382,10 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 		auto fpdata = fp.GetFlightPlanData();
 		tm t;
 		m_sequence[idx].CTOT.GetGmtTm(&t);
-		std::string temp1;
-		temp1 = std::to_string(t.tm_hour);
-		temp1 += std::to_string(t.tm_min);
-		fpdata.SetEstimatedDepartureTime(temp1.c_str());
+		CString cstring;
+		cstring.Format("%.4d", t.tm_hour * 100 + t.tm_min);
+		fpdata.SetEstimatedDepartureTime(cstring);
+		fpdata.SetEstimatedDepartureTime(cstring);
 		break;
 	}
 	case TAG_FUNC_CTOT_CLEAR: // clear the ctot
@@ -407,6 +406,9 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 		m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(fp))), m_sequence.end());
 		m_TOSequenceList.RemoveFpFromTheList(fp);
 		updateList();
+		if (m_sequence.size() == idx) break;
+		if (idx == 0) recalculateCTOT(*m_sequence.begin());
+		else recalculateCTOT(m_sequence[idx-1]);
 		break;
 
 	}// switch by the function ID
@@ -496,10 +498,12 @@ void CGMPHelper::recalculateCTOT(CTOTData inserted)
 		return;
 	}
 	//iterate over the sequence starting from "inserted"
-	for (auto &it = pos + 1; it != m_sequence.end(); ++it)
+	for (auto &it = pos; it != m_sequence.end()-1; it++)
 	{
-		CTOTData temp1 = *(it - 1);
-		CTOTData &temp2 = *it;
+		CTOTData temp1 = *it ;
+		CString test = temp1.flightplan.GetCallsign();
+		CTOTData &temp2 = *(it+1);
+		CString test2 = temp2.flightplan.GetCallsign();
 		if (temp2.manual) continue;
 		CTimeSpan inc = getIncrement(temp1.flightplan, temp2.flightplan);
 		temp2.CTOT = temp1.CTOT + inc;
