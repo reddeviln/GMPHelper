@@ -26,6 +26,7 @@ const   int     TAG_FUNC_CTOT_MANUAL_FINISH = 10;
 const   int     TAG_FUNC_CTOT_ASSIGN_SEQ = 11;
 const   int     TAG_FUNC_CTOT_ASSIGN_ASAP = 13;
 const   int     TAG_FUNC_CTOT_CLEAR = 12341;
+const CTimeSpan taxitime = CTimeSpan(0, 0, 20, 0);
 
 
 
@@ -96,12 +97,11 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 	{
 		//now we check if another controller assigned a ctot we need the scratchpad string and other data for that
 		auto fpdata = FlightPlan.GetFlightPlanData();
-		auto cadata = FlightPlan.GetControllerAssignedData();
-		auto scratch = cadata.GetScratchPadString();
+		auto remarks = fpdata.GetRemarks();
 		const char* test = NULL;
 
 		//check if the scratchpad contains the phrase /CTOT
-		test = strstr(scratch, "/CTOT");
+		test = strstr(remarks, "/CTOT");
 		if (test)
 		{
 			//if yes then a controller already assigned a ctot and the estimated dep time on the flightplan is the ctot
@@ -128,7 +128,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			//construct the new CTOT object and add it to the sequence. We didnt calculate anything here just read the data from the flightplan
 			newone.CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0) - diff;
 			newone.flightplan = FlightPlan;
-			newone.TOBT = newone.CTOT - CTimeSpan(0, 0, 15, 0);
+			newone.TOBT = newone.CTOT - taxitime;
 			m_sequence.push_back(newone);
 			std::sort(m_sequence.begin(), m_sequence.end());
 		}
@@ -263,25 +263,26 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 		int input = atoi(sItemString);
 		int test = input - (input / 100) * 100;
 		if (input >= 2400 || test >= 60) return;
-		auto data = fp.GetControllerAssignedData();
-		auto scratch = data.GetScratchPadString();
+		auto data = fp.GetFlightPlanData();
+		auto remarks = data.GetRemarks();
 		const char* test1 = NULL;
-		std::string temp2 = scratch;
-		test1 = strstr(scratch, "/CTOT");
-		//if /CTOT is not present in the scratch pad we append it to it
+		std::string temp2 = remarks;
+		test1 = strstr(remarks, "/CTOT");
+		//if /CTOT is not present in the remarks we append it to it
 		if (!test1)
 		{
 			std::string temp2;
-			temp2 = scratch;
+			temp2 = remarks;
 			temp2 += "/CTOT";
-			data.SetScratchPadString(temp2.c_str());
+			data.SetRemarks(temp2.c_str());
+			data.AmendFlightPlan();
 		}
 		// if the aircraft was in the sequence already we modify its CTOTData otherwise we make a new one
 		if (idx >= 0)
 		{
 			try {
 				m_sequence[idx].CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0) - diff;
-				m_sequence[idx].TOBT = m_sequence[idx].CTOT - CTimeSpan(0, 0, 15, 0);
+				m_sequence[idx].TOBT = m_sequence[idx].CTOT - taxitime;
 				m_sequence[idx].manual = true;
 				std::sort(m_sequence.begin(), m_sequence.end());
 
@@ -295,7 +296,7 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 			temp1.flightplan = fp;
 			try {
 				temp1.CTOT = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, input / 100, input - (input / 100) * 100, 0) - diff;
-				temp1.TOBT = temp1.CTOT - CTimeSpan(0, 0, 15, 0);
+				temp1.TOBT = temp1.CTOT - taxitime;
 				temp1.manual = true;
 				m_sequence.push_back(temp1);
 				std::sort(m_sequence.begin(), m_sequence.end());
@@ -312,8 +313,8 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 		CString cstring;
 		cstring.Format("%.4d", t2.tm_hour * 100 + t2.tm_min);
 		fpdata.SetEstimatedDepartureTime(cstring);
+		fpdata.AmendFlightPlan();
 		//we recalculate the CTOT for all aircraft in sequence after the manually assigned one
-		recalculateCTOT(m_sequence[idx]);
 		break;
 	}
 	case TAG_FUNC_CTOT_ASSIGN: // TAG function
@@ -337,17 +338,18 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 		//dont assign if we already have assigned one. Safeguards against missclicks
 		if (idx >= 0) return;
 		// get the scratchpad data and modify it
-		auto data = fp.GetControllerAssignedData();
-		auto scratch = data.GetScratchPadString();
+		auto data = fp.GetFlightPlanData();
+		auto remarks = data.GetRemarks();
 		const char* test = NULL;
-		std::string temp = scratch;
-		test = strstr(scratch, "/CTOT");
+		std::string temp = remarks;
+		test = strstr(remarks, "/CTOT");
 		if (!test)
 		{
 			std::string temp;
-			temp = scratch;
+			temp = remarks;
 			temp += "/CTOT";
-			data.SetScratchPadString(temp.c_str());
+			data.SetRemarks(temp.c_str());
+			data.AmendFlightPlan();
 		}
 		CGMPHelper::assignCTOT(false, fp);
 
@@ -359,23 +361,25 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 		CString cstring;
 		cstring.Format("%.4d", t.tm_hour * 100 + t.tm_min);
 		fpdata.SetEstimatedDepartureTime(cstring);
+		fpdata.AmendFlightPlan();
 		break;
 	}
 	case TAG_FUNC_CTOT_ASSIGN_ASAP: // user selected asap
 	{
 		//all is the same but we call assignCTOT with the asap flag
 		if (idx >= 0) return;
-		auto data = fp.GetControllerAssignedData();
-		auto scratch = data.GetScratchPadString();
+		auto data = fp.GetFlightPlanData();
+		auto remarks = data.GetRemarks();
 		const char* test = NULL;
-		std::string temp = scratch;
-		test = strstr(scratch, "/CTOT");
+		std::string temp = remarks;
+		test = strstr(remarks, "/CTOT");
 		if (!test)
 		{
 			std::string temp;
-			temp = scratch;
+			temp = remarks;
 			temp += "/CTOT";
-			data.SetScratchPadString(temp.c_str());
+			data.SetRemarks(temp.c_str());
+			data.AmendFlightPlan();
 		}
 		CGMPHelper::assignCTOT(true, fp);
 		idx = _SelectAcIndex(fp);
@@ -385,23 +389,24 @@ void    CGMPHelper::OnFunctionCall(int FunctionId,
 		CString cstring;
 		cstring.Format("%.4d", t.tm_hour * 100 + t.tm_min);
 		fpdata.SetEstimatedDepartureTime(cstring);
-		fpdata.SetEstimatedDepartureTime(cstring);
+		fpdata.AmendFlightPlan();
 		break;
 	}
 	case TAG_FUNC_CTOT_CLEAR: // clear the ctot
 
 		// simply clear
 		if (idx < 0) break;
-		auto cadata = fp.GetControllerAssignedData();
-		auto scratch = cadata.GetScratchPadString();
+		auto cadata = fp.GetFlightPlanData();
+		auto remarks = cadata.GetRemarks();
 		const char* test = NULL;
-		std::string temp = scratch;
-		test = strstr(scratch, "/CTOT");
+		std::string temp = remarks;
+		test = strstr(remarks, "/CTOT");
 		if (test)
 		{
 			//find and replace /CTOT from scratchpad
 			temp = std::regex_replace(temp, std::regex("\\/CTOT"), "");
-			cadata.SetScratchPadString(temp.c_str());
+			cadata.SetRemarks(temp.c_str());
+			cadata.AmendFlightPlan();
 		}
 		m_sequence.erase(std::remove(m_sequence.begin(), m_sequence.end(), m_sequence.at(_SelectAcIndex(fp))), m_sequence.end());
 		m_TOSequenceList.RemoveFpFromTheList(fp);
@@ -426,8 +431,8 @@ void CGMPHelper::assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan flightplan)
 
 		temp.flightplan = flightplan;
 		temp.sequence = -1;
-		ctot = time + CTimeSpan(0, 0, 20, 0);
-		tobt = ctot - CTimeSpan(0, 0, 15, 0);
+		ctot = time + CTimeSpan(0, 0, 25, 0);
+		tobt = ctot - taxitime;
 		temp.CTOT = ctot;
 		temp.TOBT = tobt;
 
@@ -439,9 +444,9 @@ void CGMPHelper::assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan flightplan)
 		CTimeSpan increment = getIncrement(end.flightplan, flightplan);
 		temp.flightplan = flightplan;
 		temp.sequence = -1;
-		//assign at earliest 20 minutes after now 
-		ctot = max(time + CTimeSpan(0, 0, 20, 0), end.CTOT + increment);
-		tobt = ctot - CTimeSpan(0, 0, 15, 0);
+		//assign at earliest 25 minutes after now 
+		ctot = max(time + CTimeSpan(0, 0, 25, 0), end.CTOT + increment);
+		tobt = ctot - taxitime;
 		temp.CTOT = ctot;
 		temp.TOBT = tobt;
 
@@ -452,7 +457,9 @@ void CGMPHelper::assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan flightplan)
 	std::sort(m_sequence.begin(), m_sequence.end());
 	if (asap)
 	{
-		recalculateCTOT(temp);
+		if(int ind= _SelectAcIndex(temp.flightplan)>0) recalculateCTOT(m_sequence.at(ind-1));
+		else recalculateCTOT(*(m_sequence.begin()));
+		
 	}
 
 }
@@ -469,10 +476,10 @@ void CGMPHelper::updateList()
 		//if any aircraft takes off remove it automatically
 		auto fp = i.flightplan;
 		EuroScopePlugIn::CRadarTarget rt = fp.GetCorrelatedRadarTarget();
-		auto cad = fp.GetControllerAssignedData();
-		auto scratch = cad.GetScratchPadString();
+		auto cad = fp.GetFlightPlanData();
+		auto remarks = cad.GetRemarks();
 		const char* test = NULL;
-		test = strstr(scratch, "/CTOT");
+		test = strstr(remarks, "/CTOT");
 		if (rt.GetGS() > 80||!test)
 		{
 			m_TOSequenceList.RemoveFpFromTheList(fp);
@@ -507,7 +514,7 @@ void CGMPHelper::recalculateCTOT(CTOTData inserted)
 		if (temp2.manual) continue;
 		CTimeSpan inc = getIncrement(temp1.flightplan, temp2.flightplan);
 		temp2.CTOT = temp1.CTOT + inc;
-		temp2.TOBT = temp2.CTOT - CTimeSpan(0, 0, 15, 0);
+		temp2.TOBT = temp2.CTOT - taxitime;
 	}
 
 }
