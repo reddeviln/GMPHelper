@@ -431,7 +431,7 @@ void CGMPHelper::assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan flightplan)
 
 		temp.flightplan = flightplan;
 		temp.sequence = -1;
-		ctot = time + CTimeSpan(0, 0, 25, 0);
+		ctot = time + CTimeSpan(0, 0, 30, 0);
 		tobt = ctot - taxitime;
 		temp.CTOT = ctot;
 		temp.TOBT = tobt;
@@ -444,8 +444,8 @@ void CGMPHelper::assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan flightplan)
 		CTimeSpan increment = getIncrement(end.flightplan, flightplan);
 		temp.flightplan = flightplan;
 		temp.sequence = -1;
-		//assign at earliest 25 minutes after now 
-		ctot = max(time + CTimeSpan(0, 0, 25, 0), end.CTOT + increment);
+		//assign at earliest 30 minutes after now 
+		ctot = max(time + CTimeSpan(0, 0, 30, 0), end.CTOT + increment);
 		tobt = ctot - taxitime;
 		temp.CTOT = ctot;
 		temp.TOBT = tobt;
