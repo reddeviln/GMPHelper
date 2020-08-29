@@ -3,6 +3,7 @@
 #include "EuroScopePlugIn.h"
 #include "pch.h"
 #include <vector>
+#include "csv.h"
 class CTOTData
 	//this class is used as a storage. Each aircraft that gets a ctot assigned will be put in a CTOTData object. It contains the flightplan the CTOT and TOBT a switch if it was manually assigned
 {
@@ -29,8 +30,110 @@ public:
 		}
 		return false;
 	}
+	static bool CTOTData::test()
+	{
+		return true;
+	}
 
 };
+class RouteTo
+	//This class stores the different standard routes to a destination icao.
+{
+public:
+	std::string mICAO, mDestname, mLevelR, mRoute, mRouteForced;
+	std::vector<std::string> endpoints;
+	RouteTo(std::string ICAO, std::string destname, std::string LevelR, std::string Route)
+	{
+		mICAO = ICAO;
+		mDestname = destname;
+		mLevelR = LevelR;
+		mRoute = Route;
+		endpoints.push_back("ALPOB");
+		endpoints.push_back("GOLGU");
+		endpoints.push_back("TUMAK");
+		endpoints.push_back("GABKO");
+		endpoints.push_back("ASMUK");
+		endpoints.push_back("UKRAG");
+		endpoints.push_back("RIKOP");
+		endpoints.push_back("KHM");
+		endpoints.push_back("ALKAN");
+		endpoints.push_back("OBSAS");
+		endpoints.push_back("TARDI");
+		endpoints.push_back("LALDO");
+		endpoints.push_back("AFNAN");
+		CTOTData::test();
+		this->calculateForcedRoute(Route);
+	}
+
+	void calculateForcedRoute(std::string Route)
+	{
+		for (auto point : endpoints)
+		{
+			auto found = Route.find(point);
+			if (found != std::string::npos)
+			{
+				if(point == "OBSAS" &&this->mICAO == "OBBI")
+				{
+					mRouteForced = Route;
+					break;
+				}
+				if(point == "AFNAN" && this->mICAO =="OTHH")
+				{
+					mRouteForced = Route;
+					break;
+				}
+				mRouteForced = Route.substr(1, found + 4);
+			}
+		}
+	}
+	bool isCruiseValid(int Flightlevel)
+	{
+		if (this->mLevelR == "ODD")
+		{
+			if ((Flightlevel / 1000) % 2 == 1) return true;
+			else return false;
+		}
+		if (this->mLevelR == "EVEN")
+		{
+			if ((Flightlevel / 1000) % 2 == 0) return true;
+			else return false;
+		}
+		if (this->mLevelR == "MAXFL260EVEN")
+		{
+			if (((Flightlevel / 1000) % 2 == 0) && Flightlevel <= 26000) return true;
+			else return false;
+		}
+		return false;
+	}
+	bool isRouteValid(std::string Route)
+	{
+		auto check = Route.find(mRouteForced);
+		if (check == std::string::npos)
+			return false;
+		else return true;
+	}
+
+};
+class RouteData
+	//this Class holds all RouteTos
+{
+public:
+	RouteData(){}
+	std::vector<RouteTo> Routes;
+	std::vector<std::string> icaos;
+
+	std::vector<RouteTo> getDatafromICAO(std::string icao)
+	{
+		std::vector<RouteTo> routes;
+		for (auto temp : Routes)
+		{
+			if (icao == temp.mICAO)
+				routes.push_back(temp);
+		}
+		return routes;
+	}
+};
+
 class CGMPHelper :
 	//The class that holds all our functions 
 	public EuroScopePlugIn::CPlugIn
@@ -51,7 +154,15 @@ public:
 	This function overrides a Euroscope function. If you type ".showtolist" in the euroscope textbox it will show the t/o sequence list
 	Input: sCommandLine (the textbox string)
 	*/
-
+	bool fileExists(const std::string& filename)
+	{
+		struct stat buf;
+		if (stat(filename.c_str(), &buf) != -1)
+		{
+			return true;
+		}
+		return false;
+	}
 	virtual void CGMPHelper::OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan);
 	/*
 	This function overrides a Euroscope function. It makes sure that when a user disconnects, that his flightplan is deleted from our list and from the sequence

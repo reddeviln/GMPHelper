@@ -5,6 +5,10 @@
 #include <ctime>
 #include <algorithm>
 #include <regex>
+#include "resource.h"
+#include <iostream>
+#include <fstream>
+#include <filesystem>
 
 
 
@@ -18,6 +22,7 @@
 const   int     TAG_ITEM_CTOT = 1121312;
 const   int     TAG_ITEM_Sequence = 212312;
 const   int     TAG_ITEM_TOBT = 312312;
+const	int		TAG_ITEM_ROUTE_VALID = 123123;
 
 const   int     TAG_FUNC_CTOT_MANUAL = 1;
 const   int     TAG_FUNC_CTOT_ASSIGN = 2;
@@ -27,6 +32,7 @@ const   int     TAG_FUNC_CTOT_ASSIGN_SEQ = 11;
 const   int     TAG_FUNC_CTOT_ASSIGN_ASAP = 13;
 const   int     TAG_FUNC_CTOT_CLEAR = 12341;
 const CTimeSpan taxitime = CTimeSpan(0, 0, 20, 0);
+RouteData data;
 
 
 
@@ -43,6 +49,7 @@ CGMPHelper::CGMPHelper(void)
 	RegisterTagItemType("CTOT", TAG_ITEM_CTOT);
 	RegisterTagItemType("T/O sequence", TAG_ITEM_Sequence);
 	RegisterTagItemType("TOBT", TAG_ITEM_TOBT);
+	RegisterTagItemType("RouteValid", TAG_ITEM_ROUTE_VALID);
 
 	//Registering our two functions the first one opens a popup menu the second one lets the user enter a ctot manually
 	RegisterTagItemFunction("Assign CTOT", TAG_FUNC_CTOT_ASSIGN);
@@ -66,6 +73,37 @@ CGMPHelper::CGMPHelper(void)
 			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
 			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
 
+	}
+	
+	
+	char path[MAX_PATH];
+	HMODULE hm = NULL;
+
+	if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+		GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		(LPCSTR)&CTOTData::test, &hm) == 0)
+	{
+		int ret = GetLastError();
+		fprintf(stderr, "GetModuleHandle failed, error = %d\n", ret);
+		// Return or however you want to handle an error.
+	}
+	if (GetModuleFileName(hm, path, sizeof(path)) == 0)
+	{
+		int ret = GetLastError();
+		fprintf(stderr, "GetModuleFileName failed, error = %d\n", ret);
+		// Return or however you want to handle an error.
+	}
+	std::string dir(path);
+	std::string filename("GMPHelper.dll");
+	size_t pos = dir.find(filename);
+	dir.replace(pos, filename.length(), "");
+	dir += "omaeroutes.csv";
+	io::CSVReader<4, io::trim_chars<' '>, io::no_quote_escape<','>> in(dir);
+	in.read_header(io::ignore_no_column, "Dest ICAO", "Dest Name", "Level Restrictions", "Full Route");
+	std::string Dest, Destname, LevelR, Routing;
+	while (in.read_row(Dest, Destname, LevelR, Routing)) {
+		data.Routes.push_back(RouteTo(Dest, Destname, LevelR, Routing));
+		data.icaos.push_back(Dest);
 	}
 }
 
@@ -93,14 +131,14 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		return;
 
 	// handle the case that our aircraft is not in our -local- sequence yet
-	if ((idx = _SelectAcIndex(FlightPlan)) < 0)
+	if ((idx = _SelectAcIndex(FlightPlan)) < 0&& ItemCode!=TAG_ITEM_ROUTE_VALID)
 	{
 		//now we check if another controller assigned a ctot we need the scratchpad string and other data for that
 		auto fpdata = FlightPlan.GetFlightPlanData();
 		auto remarks = fpdata.GetRemarks();
 		const char* test = NULL;
 
-		//check if the scratchpad contains the phrase /CTOT
+		//check if the remarks contains the phrase /CTOT
 		test = strstr(remarks, "/CTOT");
 		if (test)
 		{
@@ -169,6 +207,55 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		temp3.Format("%d", seq);
 		strcpy(sItemString, temp3);
 		break;
+	}
+	case TAG_ITEM_ROUTE_VALID:
+	{
+		auto fpdata = FlightPlan.GetFlightPlanData();
+		auto icao = fpdata.GetDestination();
+		auto test = fpdata.GetPlanType();
+		if (strcmp(test,"V")==0)
+		{
+			strcpy(sItemString, "");
+			return;
+		}
+		bool foundRoute = false;
+		for (auto temp : data.icaos)
+		{
+			if (temp == icao)
+			{
+				foundRoute = true;
+				break;
+			}
+
+		}
+		if (!foundRoute)
+		{
+			strcpy(sItemString, "?");
+			return;
+		}
+		auto dt = data.getDatafromICAO(icao);
+		bool cruisevalid = false;
+		bool routevalid = false;
+		for (auto d : dt) {
+			std::string tmp = fpdata.GetRoute();
+			std::regex rule("\\/(.+?)(\\\s+?)");
+			tmp = std::regex_replace(tmp, rule, " ");
+			cruisevalid = d.isCruiseValid(FlightPlan.GetFinalAltitude());
+			bool routevalid = d.isRouteValid(tmp);
+			if( cruisevalid && routevalid)
+			{
+				strcpy(sItemString, "");
+				return;
+			}
+				
+		}
+		if (cruisevalid) strcpy(sItemString, "R");
+		else if (routevalid) strcpy(sItemString, "L");
+		else {
+			strcpy(sItemString, "X");
+		}
+		
+		*pColorCode = EuroScopePlugIn::TAG_COLOR_EMERGENCY;
 	}
 	}
 }

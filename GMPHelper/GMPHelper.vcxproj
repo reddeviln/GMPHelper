@@ -206,13 +206,16 @@
   <ItemGroup>
     <None Include="GMPHelper.def" />
     <None Include="res\GMPHelper.rc2" />
+    <None Include="res\omaeroutes.csv" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\GMPHelper2.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GMPHelper.h" />
+    <ClInclude Include="routing.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="resource1.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
