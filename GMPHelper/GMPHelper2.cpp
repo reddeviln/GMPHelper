@@ -657,6 +657,9 @@ CTimeSpan CGMPHelper::getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePl
 		else
 			increment = CTimeSpan(0, 0, 2, 0);
 	}
+	if (sid1 == sid2 && (strstr(sid1, "ANVIX") || strstr(sid1, "IVURO")))
+		increment = max(increment, CTimeSpan(0, 0, 3, 0));
+
 	return increment;
 }
 
