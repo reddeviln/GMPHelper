@@ -249,8 +249,8 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			}
 				
 		}
-		if (cruisevalid) strcpy(sItemString, "R");
-		else if (routevalid) strcpy(sItemString, "L");
+		if (cruisevalid && !routevalid) strcpy(sItemString, "R");
+		else if (routevalid && !cruisevalid) strcpy(sItemString, "L");
 		else {
 			strcpy(sItemString, "X");
 		}
