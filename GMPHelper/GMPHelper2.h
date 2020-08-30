@@ -40,12 +40,13 @@ class RouteTo
 	//This class stores the different standard routes to a destination icao.
 {
 public:
-	std::string mICAO, mDestname, mLevelR, mRoute, mRouteForced;
+	std::string mDEPICAO, mDestICAO, mEvenOdd, mLevelR, mRoute, mRouteForced;
 	std::vector<std::string> endpoints;
-	RouteTo(std::string ICAO, std::string destname, std::string LevelR, std::string Route)
+	RouteTo(std::string DepICAO, std::string DestICAO, std::string evenodd, std::string LevelR, std::string Route)
 	{
-		mICAO = ICAO;
-		mDestname = destname;
+		mDEPICAO = DepICAO;
+		mDestICAO = DestICAO;
+		mEvenOdd = evenodd;
 		mLevelR = LevelR;
 		mRoute = Route;
 		endpoints.push_back("ALPOB");
@@ -72,12 +73,12 @@ public:
 			auto found = Route.find(point);
 			if (found != std::string::npos)
 			{
-				if(point == "OBSAS" &&this->mICAO == "OBBI")
+				if(point == "OBSAS" &&this->mDEPICAO == "OBBI")
 				{
 					mRouteForced = Route;
 					break;
 				}
-				if(point == "AFNAN" && this->mICAO =="OTHH")
+				if(point == "AFNAN" && this->mDEPICAO =="OTHH")
 				{
 					mRouteForced = Route;
 					break;
@@ -88,22 +89,28 @@ public:
 	}
 	bool isCruiseValid(int Flightlevel)
 	{
-		if (this->mLevelR == "ODD")
+		bool returnval = false;
+		if (this->mEvenOdd == "ODD")
 		{
-			if ((Flightlevel / 1000) % 2 == 1) return true;
+			if ((Flightlevel / 1000) % 2 == 1) returnval = true;
 			else return false;
 		}
-		if (this->mLevelR == "EVEN")
+		if (this->mEvenOdd == "EVEN")
 		{
-			if ((Flightlevel / 1000) % 2 == 0) return true;
+			if ((Flightlevel / 1000) % 2 == 0) returnval = true;
 			else return false;
 		}
-		if (this->mLevelR == "MAXFL260EVEN")
+		if (this->mLevelR == "<260")
 		{
 			if (((Flightlevel / 1000) % 2 == 0) && Flightlevel <= 26000) return true;
 			else return false;
 		}
-		return false;
+		if (this->mLevelR == "110")
+		{
+			if (Flightlevel == 11000) return true;
+		}
+
+		return returnval;
 	}
 	bool isRouteValid(std::string Route)
 	{
@@ -127,7 +134,7 @@ public:
 		std::vector<RouteTo> routes;
 		for (auto temp : Routes)
 		{
-			if (icao == temp.mICAO)
+			if (icao == temp.mDestICAO)
 				routes.push_back(temp);
 		}
 		return routes;
@@ -142,7 +149,12 @@ public:
 	//the list displayed in euroscope
 	EuroScopePlugIn::CFlightPlanList  m_TOSequenceList;
 	//this vector holds a CTOTData for each aircraft
-	std::vector<CTOTData> m_sequence;
+	std::vector<CTOTData> m_sequence_OMDB;
+	std::vector<CTOTData> m_sequence_OMSJ;
+	std::vector<CTOTData> m_sequence_OMDW;
+	std::vector<CTOTData> m_sequence_OMAA;
+	
+
 	CGMPHelper(void);
 
 
@@ -199,7 +211,13 @@ public:
 			   CFlightPlan flightplan (the corresponding flightplan)
 	*/
 
-	void CGMPHelper::updateList();
+	void CGMPHelper::updateListOMDB();
+	//This function is called from various other functions to do housekeeping on the actual euroscope list
+	void CGMPHelper::updateListOMSJ();
+	//This function is called from various other functions to do housekeeping on the actual euroscope list
+	void CGMPHelper::updateListOMDW();
+	//This function is called from various other functions to do housekeeping on the actual euroscope list
+	void CGMPHelper::updateListOMAA();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
 
 	CTimeSpan CGMPHelper::getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePlugIn::CFlightPlan fp2);
