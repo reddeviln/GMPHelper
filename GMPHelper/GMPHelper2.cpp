@@ -285,9 +285,9 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		{
 			for (auto temp : data.icaos)
 			{
-				if (temp == icao.substr(0, 1))
+				if (temp == icao.substr(0, 2))
 				{
-					icao = icao.substr(0, 1);
+					icao = icao.substr(0, 2);
 					foundRoute = true;
 					break;
 				}
@@ -296,9 +296,9 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			{
 				for (auto temp : data.icaos)
 				{
-					if (temp == icao.substr(0, 0))
+					if (temp == icao.substr(0, 1))
 					{
-						icao = icao.substr(0, 0);
+						icao = icao.substr(0, 1);
 						foundRoute = true;
 						break;
 					}
@@ -318,13 +318,44 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			std::regex rule("\\/(.+?)(\\\s+?)");
 			tmp = std::regex_replace(tmp, rule, " ");
 			cruisevalid = d.isCruiseValid(FlightPlan.GetFinalAltitude());
-			bool routevalid = d.isRouteValid(tmp);
+			routevalid = d.isRouteValid(tmp);
 			if( cruisevalid && routevalid)
 			{
 				strcpy(sItemString, "");
 				return;
+			}	
+		}
+		if (!routevalid)
+		{
+			icao = icao.substr(0, 2);
+			dt = data.getDatafromICAO(icao);
+			for (auto d : dt) {
+				std::string tmp = fpdata.GetRoute();
+				std::regex rule("\\/(.+?)(\\\s+?)");
+				tmp = std::regex_replace(tmp, rule, " ");
+				routevalid = d.isRouteValid(tmp);
+				if (cruisevalid && routevalid)
+				{
+					strcpy(sItemString, "");
+					return;
+				}
 			}
-				
+		}
+		if (!routevalid)
+		{
+			icao = icao.substr(0, 1);
+			dt = data.getDatafromICAO(icao);
+			for (auto d : dt) {
+				std::string tmp = fpdata.GetRoute();
+				std::regex rule("\\/(.+?)(\\\s+?)");
+				tmp = std::regex_replace(tmp, rule, " ");
+				routevalid = d.isRouteValid(tmp);
+				if (cruisevalid && routevalid)
+				{
+					strcpy(sItemString, "");
+					return;
+				}
+			}
 		}
 		if (cruisevalid && !routevalid) strcpy(sItemString, "R");
 		else if (routevalid && !cruisevalid) strcpy(sItemString, "L");
