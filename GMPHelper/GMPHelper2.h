@@ -175,7 +175,7 @@ public:
 		}
 		return false;
 	}
-	virtual void CGMPHelper::OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan);
+	//virtual void CGMPHelper::OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan);
 	/*
 	This function overrides a Euroscope function. It makes sure that when a user disconnects, that his flightplan is deleted from our list and from the sequence
 	Input: FlightPlan (the flightplan of the disconnected user)
@@ -193,39 +193,39 @@ public:
 	  detailed info on the input and output values can be found in the EuroScopePlugIn.h header
 	*/
 
-	int     _SelectAcIndex(EuroScopePlugIn::CFlightPlan flightplan);
+	/*int     _SelectAcIndex(EuroScopePlugIn::CFlightPlan flightplan);*/
 	/* This function searches our sequence for the input "flightplan" and returns the index
 	*/
 
-	virtual void    CGMPHelper::OnFunctionCall(int FunctionId,
+	/*virtual void    CGMPHelper::OnFunctionCall(int FunctionId,
 		const char * sItemString,
 		POINT Pt,
-		RECT Area);
+		RECT Area);*/
 	/*This function overrides a Euroscope function. It handles the user interface interaction. So it shows the popup menu on left click on the respective TAG fields and so on 
 	  detailed info on the input and output values can be found in the EuroScopePlugIn.h header
 	*/
 
-	void assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan);
+	//void assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan);
 	/*This function is called when a CTOT should be assigned to an aircraft. It constructs the new CTOTData object and redoes the sequence
 		Input: bool asap (if an aircraft should be assigned a ctot that is as close to now as possible or at the end of the sequence)
 			   CFlightPlan flightplan (the corresponding flightplan)
 	*/
 
-	void CGMPHelper::updateListOMDB();
+	//void CGMPHelper::updateListOMDB();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
-	void CGMPHelper::updateListOMSJ();
+	//void CGMPHelper::updateListOMSJ();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
-	void CGMPHelper::updateListOMDW();
+	//void CGMPHelper::updateListOMDW();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
-	void CGMPHelper::updateListOMAA();
+	//void CGMPHelper::updateListOMAA();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
 
-	CTimeSpan CGMPHelper::getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePlugIn::CFlightPlan fp2);
+	//CTimeSpan CGMPHelper::getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePlugIn::CFlightPlan fp2);
 	/*This function is the heart of the implementation. It determines which separation fp2 needs to maintain to the preceeding aircraft fp1.
 	  It takes into account the sids and wake turbulence category of the aircraft
 	*/
 
-	void CGMPHelper::recalculateCTOT(CTOTData inserted);
+	//void CGMPHelper::recalculateCTOT(CTOTData inserted);
 	/* This function is called when we change the order of the sequence either by assigning an aircraft and asap ctot or by manually assigning one.
 	   The function recalculates all CTOTs that follow the "inserted" so the modified one.
 	*/
