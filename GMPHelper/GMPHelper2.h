@@ -4,6 +4,8 @@
 #include "pch.h"
 #include <vector>
 #include "csv.h"
+#include "loguru.hpp"
+
 class CTOTData
 	//this class is used as a storage. Each aircraft that gets a ctot assigned will be put in a CTOTData object. It contains the flightplan the CTOT and TOBT a switch if it was manually assigned
 {
@@ -13,7 +15,7 @@ public:
 	CTime CTOT, TOBT;
 	int sequence;
 	bool manual = false;
-	bool CTOTData::operator==(const CTOTData& rhs)
+	bool operator==(const CTOTData& rhs)
 		//overwriting the == and < operator to make use of the STL algorithms for sorting and finding lateron
 	{
 		if ((this->flightplan.GetCallsign() == rhs.flightplan.GetCallsign()) && this->CTOT == rhs.CTOT && this->sequence == rhs.sequence && this->TOBT == rhs.TOBT)
@@ -22,7 +24,7 @@ public:
 		}
 		return false;
 	}
-	bool CTOTData::operator<(const CTOTData& rhs)
+	bool operator<(const CTOTData& rhs)
 	{
 		if (this->CTOT < rhs.CTOT)
 		{
@@ -30,7 +32,7 @@ public:
 		}
 		return false;
 	}
-	static bool CTOTData::test()
+	static bool test()
 	{
 		return true;
 	}
@@ -161,7 +163,7 @@ public:
 
 	virtual ~CGMPHelper(void);
 
-	inline  virtual bool    CGMPHelper::OnCompileCommand(const char * sCommandLine);
+	inline  virtual bool    OnCompileCommand(const char * sCommandLine);
 	/*
 	This function overrides a Euroscope function. If you type ".showtolist" in the euroscope textbox it will show the t/o sequence list
 	Input: sCommandLine (the textbox string)
@@ -175,13 +177,13 @@ public:
 		}
 		return false;
 	}
-	virtual void CGMPHelper::OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan);
+	//virtual void OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan);
 	/*
 	This function overrides a Euroscope function. It makes sure that when a user disconnects, that his flightplan is deleted from our list and from the sequence
 	Input: FlightPlan (the flightplan of the disconnected user)
 	*/
 
-	virtual void    CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
+	virtual void  OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		EuroScopePlugIn::CRadarTarget RadarTarget,
 		int ItemCode,
 		int TagData,
@@ -197,7 +199,7 @@ public:
 	/* This function searches our sequence for the input "flightplan" and returns the index
 	*/
 
-	virtual void    CGMPHelper::OnFunctionCall(int FunctionId,
+	virtual void    OnFunctionCall(int FunctionId,
 		const char * sItemString,
 		POINT Pt,
 		RECT Area);
@@ -211,21 +213,21 @@ public:
 			   CFlightPlan flightplan (the corresponding flightplan)
 	*/
 
-	void CGMPHelper::updateListOMDB();
+	void updateListOMDB();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
-	void CGMPHelper::updateListOMSJ();
+	void updateListOMSJ();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
-	void CGMPHelper::updateListOMDW();
+	void updateListOMDW();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
-	void CGMPHelper::updateListOMAA();
+	void updateListOMAA();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
 
-	CTimeSpan CGMPHelper::getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePlugIn::CFlightPlan fp2);
+	CTimeSpan getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePlugIn::CFlightPlan fp2);
 	/*This function is the heart of the implementation. It determines which separation fp2 needs to maintain to the preceeding aircraft fp1.
 	  It takes into account the sids and wake turbulence category of the aircraft
 	*/
 
-	void CGMPHelper::recalculateCTOT(CTOTData inserted);
+	void recalculateCTOT(CTOTData inserted);
 	/* This function is called when we change the order of the sequence either by assigning an aircraft and asap ctot or by manually assigning one.
 	   The function recalculates all CTOTs that follow the "inserted" so the modified one.
 	*/

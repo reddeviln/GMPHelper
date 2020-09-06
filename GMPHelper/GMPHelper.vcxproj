@@ -140,7 +140,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -212,6 +212,7 @@
     <ClInclude Include="..\GMPHelper2.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GMPHelper.h" />
+    <ClInclude Include="I:\Downloads\loguru-master\loguru.hpp" />
     <ClInclude Include="routing.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
