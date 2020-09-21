@@ -46,34 +46,34 @@ CGMPHelper::CGMPHelper(void)
 		MY_PLUGIN_COPYRIGHT)
 {
 	//Registering our TAG items that can be added to any list in euroscope
-	RegisterTagItemType("CTOT", TAG_ITEM_CTOT);
-	RegisterTagItemType("T/O sequence", TAG_ITEM_Sequence);
-	RegisterTagItemType("TOBT", TAG_ITEM_TOBT);
+	//RegisterTagItemType("CTOT", TAG_ITEM_CTOT);
+	//RegisterTagItemType("T/O sequence", TAG_ITEM_Sequence);
+	//RegisterTagItemType("TOBT", TAG_ITEM_TOBT);
 	RegisterTagItemType("RouteValid", TAG_ITEM_ROUTE_VALID);
 
 	//Registering our two functions the first one opens a popup menu the second one lets the user enter a ctot manually
-	RegisterTagItemFunction("Assign CTOT", TAG_FUNC_CTOT_ASSIGN);
-	RegisterTagItemFunction("Edit CTOT", TAG_FUNC_CTOT_MANUAL);
+	//RegisterTagItemFunction("Assign CTOT", TAG_FUNC_CTOT_ASSIGN);
+	//RegisterTagItemFunction("Edit CTOT", TAG_FUNC_CTOT_MANUAL);
 
 	//Registering our list that is displayed in euroscope
-	m_TOSequenceList = RegisterFpList("T/O Sequence List");
-	if (m_TOSequenceList.GetColumnNumber() == 0)
-	{
-		// fill in the default columns of the list in none are available from settings
-		m_TOSequenceList.AddColumnDefinition("C/S", 10, true, NULL, EuroScopePlugIn::TAG_ITEM_TYPE_CALLSIGN,
-			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
-			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
-		m_TOSequenceList.AddColumnDefinition("CTOT", 4, true, MY_PLUGIN_NAME, TAG_ITEM_CTOT,
-			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
-			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
-		m_TOSequenceList.AddColumnDefinition("#", 2, true, MY_PLUGIN_NAME, TAG_ITEM_Sequence,
-			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
-			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
-		m_TOSequenceList.AddColumnDefinition("W", 1, true, NULL, EuroScopePlugIn::TAG_ITEM_TYPE_AIRCRAFT_CATEGORY,
-			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
-			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
+	//m_TOSequenceList = RegisterFpList("T/O Sequence List");
+	//if (m_TOSequenceList.GetColumnNumber() == 0)
+	//{
+	//	// fill in the default columns of the list in none are available from settings
+	//	m_TOSequenceList.AddColumnDefinition("C/S", 10, true, NULL, EuroScopePlugIn::TAG_ITEM_TYPE_CALLSIGN,
+	//		NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
+	//		NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
+	//	m_TOSequenceList.AddColumnDefinition("CTOT", 4, true, MY_PLUGIN_NAME, TAG_ITEM_CTOT,
+	//		NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
+	//		NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
+	//	m_TOSequenceList.AddColumnDefinition("#", 2, true, MY_PLUGIN_NAME, TAG_ITEM_Sequence,
+	//		NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
+	//		NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
+	//	m_TOSequenceList.AddColumnDefinition("W", 1, true, NULL, EuroScopePlugIn::TAG_ITEM_TYPE_AIRCRAFT_CATEGORY,
+	//		NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO,
+	//		NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
 
-	}
+	//}
 	
 	
 	char path[MAX_PATH];
@@ -410,12 +410,12 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 //}
 inline  bool CGMPHelper::OnCompileCommand(const char * sCommandLine)
 {
-	//show the t/o sequence list if we type the command
-	if (std::strcmp(sCommandLine, ".showtolist") == 0)
-	{
-		m_TOSequenceList.ShowFpList(true);
-		return true;
-	}
+	////show the t/o sequence list if we type the command
+	//if (std::strcmp(sCommandLine, ".showtolist") == 0)
+	//{
+	//	m_TOSequenceList.ShowFpList(true);
+	//	return true;
+	//}
 	return false;
 }
 

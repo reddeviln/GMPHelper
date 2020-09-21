@@ -4,6 +4,8 @@
 #include "pch.h"
 #include <vector>
 #include "csv.h"
+#include <sstream>
+#include <set>
 class CTOTData
 	//this class is used as a storage. Each aircraft that gets a ctot assigned will be put in a CTOTData object. It contains the flightplan the CTOT and TOBT a switch if it was manually assigned
 {
@@ -114,13 +116,47 @@ public:
 	}
 	bool isRouteValid(std::string Route)
 	{
-		auto check = Route.find(mRouteForced);
+		auto temp = makeAirwaysUnique(Route);
+		auto check = temp.find(mRouteForced);
 		if (check == std::string::npos)
 			return false;
 		else return true;
 	}
+	std::string makeAirwaysUnique(std::string Route)
+	{
+	    std::string buf;                 // Have a buffer string
+		std::stringstream ss(Route);       // Insert the string into a stream
+		std::vector<std::string> tokens; // Create vector to hold our words
 
+		while (ss >> buf)
+			tokens.push_back(buf);
+		auto tokenscopy = tokens;
+		RemoveDuplicatesInVector(tokens);
+		for (int i = 0; i < tokens.size(); i++)
+		{
+			if (tokens.at(i) != tokenscopy.at(i))
+			{
+				tokens.erase(std::remove(tokens.begin(), tokens.end(), tokens.at(i-1)), tokens.end());
+				break;
+			}
+		}
+		tokens.shrink_to_fit();
+		std::string result;
+		for (auto temp : tokens)
+		{
+
+			result += temp;
+			result += " ";
+		}
+		return result;
+	}
+	void RemoveDuplicatesInVector(std::vector<std::string> & vec)
+	{
+		std::set<std::string> values;
+		vec.erase(std::remove_if(vec.begin(), vec.end(), [&](const std::string & value) { return !values.insert(value).second; }), vec.end());
+	}
 };
+
 class RouteData
 	//this Class holds all RouteTos
 {
