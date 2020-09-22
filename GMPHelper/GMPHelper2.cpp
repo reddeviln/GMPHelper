@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <unordered_map>
 
 
 
@@ -32,7 +33,7 @@ const   int     TAG_FUNC_CTOT_ASSIGN_SEQ = 11;
 const   int     TAG_FUNC_CTOT_ASSIGN_ASAP = 13;
 const   int     TAG_FUNC_CTOT_CLEAR = 12341;
 const CTimeSpan taxitime = CTimeSpan(0, 0, 20, 0);
-RouteData data;
+std::unordered_map<std::string, RouteData> data;
 
 
 
@@ -101,9 +102,15 @@ CGMPHelper::CGMPHelper(void)
 	io::CSVReader<5, io::trim_chars<' '>, io::no_quote_escape<','>> in(dir);
 	in.read_header(io::ignore_no_column, "Dep", "Dest","Evenodd", "Restriction", "Route");
 	std::string Dep, Dest, evenodd, LevelR, Routing;
-	while (in.read_row(Dep, Dest, evenodd, LevelR, Routing)) {
-		data.Routes.push_back(RouteTo(Dep, Dest, evenodd, LevelR, Routing));
-		data.icaos.push_back(Dest);
+	while (in.read_row(Dep, Dest, evenodd, LevelR, Routing)) 
+	{
+		auto temp = RouteTo(Dep, Dest, evenodd, LevelR, Routing);
+		auto depicao = temp.mDEPICAO;
+		RouteData dt;
+		std::pair<std::string, RouteData> mypair (depicao, dt);
+		data.insert(mypair);
+		data.at(depicao).Routes.push_back(temp);
+		data.at(depicao).icaos.push_back(Dest);
 	}
 }
 
@@ -258,13 +265,14 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 	}
 	case TAG_ITEM_ROUTE_VALID:
 	{
-		if (dep != "OMDB" && dep != "OTHH")
+		auto fpdata = FlightPlan.GetFlightPlanData();
+		std::string icaodep = fpdata.GetOrigin();
+		if (data.find(icaodep) == data.end())
 		{
 			strcpy(sItemString, "?");
 			return;
 		}
-		auto fpdata = FlightPlan.GetFlightPlanData();
-		std::string icao = fpdata.GetDestination();
+		std::string icaodest = fpdata.GetDestination();
 		auto test = fpdata.GetPlanType();
 		if (strcmp(test,"V")==0)
 		{
@@ -272,9 +280,9 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			return;
 		}
 		bool foundRoute = false;
-		for (auto temp : data.icaos)
+		for (auto temp : data.at(icaodep).icaos)
 		{
-			if (temp == icao)
+			if (temp == icaodest)
 			{
 				foundRoute = true;
 				break;
@@ -283,22 +291,22 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		}
 		if (!foundRoute)
 		{
-			for (auto temp : data.icaos)
+			for (auto temp : data.at(icaodep).icaos)
 			{
-				if (temp == icao.substr(0, 2))
+				if (temp == icaodest.substr(0, 2))
 				{
-					icao = icao.substr(0, 2);
+					icaodest = icaodest.substr(0, 2);
 					foundRoute = true;
 					break;
 				}
 			}
 			if (!foundRoute)
 			{
-				for (auto temp : data.icaos)
+				for (auto temp : data.at(icaodep).icaos)
 				{
-					if (temp == icao.substr(0, 1))
+					if (temp == icaodest.substr(0, 1))
 					{
-						icao = icao.substr(0, 1);
+						icaodest = icaodest.substr(0, 1);
 						foundRoute = true;
 						break;
 					}
@@ -310,7 +318,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 				return;
 			}
 		}
-		auto dt = data.getDatafromICAO(icao);
+		auto dt = data.at(icaodep).getDatafromICAO(icaodest);
 		bool cruisevalid = false;
 		bool routevalid = false;
 		for (auto d : dt) {
@@ -325,38 +333,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 				return;
 			}	
 		}
-		if (!routevalid)
-		{
-			icao = icao.substr(0, 2);
-			dt = data.getDatafromICAO(icao);
-			for (auto d : dt) {
-				std::string tmp = fpdata.GetRoute();
-				std::regex rule("\\/(.+?)(\\\s+?)");
-				tmp = std::regex_replace(tmp, rule, " ");
-				routevalid = d.isRouteValid(tmp);
-				if (cruisevalid && routevalid)
-				{
-					strcpy(sItemString, "");
-					return;
-				}
-			}
-		}
-		if (!routevalid)
-		{
-			icao = icao.substr(0, 1);
-			dt = data.getDatafromICAO(icao);
-			for (auto d : dt) {
-				std::string tmp = fpdata.GetRoute();
-				std::regex rule("\\/(.+?)(\\\s+?)");
-				tmp = std::regex_replace(tmp, rule, " ");
-				routevalid = d.isRouteValid(tmp);
-				if (cruisevalid && routevalid)
-				{
-					strcpy(sItemString, "");
-					return;
-				}
-			}
-		}
+		
 		if (cruisevalid && !routevalid) strcpy(sItemString, "R");
 		else if (routevalid && !cruisevalid) strcpy(sItemString, "L");
 		else {

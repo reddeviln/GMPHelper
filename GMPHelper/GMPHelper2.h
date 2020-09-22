@@ -42,7 +42,7 @@ class RouteTo
 	//This class stores the different standard routes to a destination icao.
 {
 public:
-	std::string mDEPICAO, mDestICAO, mEvenOdd, mLevelR, mRoute, mRouteForced;
+	std::string mDEPICAO, mDestICAO, mEvenOdd, mLevelR, mRoute;
 	std::vector<std::string> endpoints;
 	RouteTo(std::string DepICAO, std::string DestICAO, std::string evenodd, std::string LevelR, std::string Route)
 	{
@@ -51,44 +51,10 @@ public:
 		mEvenOdd = evenodd;
 		mLevelR = LevelR;
 		mRoute = Route;
-		endpoints.push_back("ALPOB");
-		endpoints.push_back("GOLGU");
-		endpoints.push_back("TUMAK");
-		endpoints.push_back("GABKO");
-		endpoints.push_back("ASMUK");
-		endpoints.push_back("UKRAG");
-		endpoints.push_back("RIKOP");
-		endpoints.push_back("KHM");
-		endpoints.push_back("ALKAN");
-		endpoints.push_back("OBSAS");
-		endpoints.push_back("TARDI");
-		endpoints.push_back("LALDO");
-		endpoints.push_back("AFNAN");
+	
 		CTOTData::test();
-		this->calculateForcedRoute(Route);
 	}
 
-	void calculateForcedRoute(std::string Route)
-	{
-		for (auto point : endpoints)
-		{
-			auto found = Route.find(point);
-			if (found != std::string::npos)
-			{
-				if(point == "OBSAS" &&this->mDEPICAO == "OBBI")
-				{
-					mRouteForced = Route;
-					break;
-				}
-				if(point == "AFNAN" && this->mDEPICAO =="OTHH")
-				{
-					mRouteForced = Route;
-					break;
-				}
-				mRouteForced = Route.substr(1, found + 4);
-			}
-		}
-	}
 	bool isCruiseValid(int Flightlevel)
 	{
 		bool returnval = false;
@@ -117,7 +83,7 @@ public:
 	bool isRouteValid(std::string Route)
 	{
 		auto temp = makeAirwaysUnique(Route);
-		auto check = temp.find(mRouteForced);
+		auto check = temp.find(mRoute);
 		if (check == std::string::npos)
 			return false;
 		else return true;
