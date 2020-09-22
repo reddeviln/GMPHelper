@@ -299,7 +299,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		{
 			if (temp == icaodest)
 			{
-				std::string logstring = "Found a designated route to " + icao + " for " + FlightPlan.GetCallsign();
+				std::string logstring = "Found a designated route to " + icaodest + " for " + FlightPlan.GetCallsign();
 				LOG_F(INFO, logstring.c_str());
 
 				foundRoute = true;
@@ -314,8 +314,8 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 				if (temp == icaodest.substr(0, 2))
 				{
 
-					icao = icao.substr(0, 2);
-					std::string logstring = "Using dummy route to " + icao + " for " + FlightPlan.GetCallsign();
+					icaodest = icaodest.substr(0, 2);
+					std::string logstring = "Using dummy route to " + icaodest + " for " + FlightPlan.GetCallsign();
 					LOG_F(INFO, logstring.c_str());
 
 					icaodest = icaodest.substr(0, 2);
@@ -340,7 +340,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			if (!foundRoute)
 			{
 				strcpy(sItemString, "?");
-				std::string logstring = "No (dummy) route to " + icao + " found for " + FlightPlan.GetCallsign();
+				std::string logstring = "No (dummy) route to " + icaodest + " found for " + FlightPlan.GetCallsign();
 				LOG_F(INFO, logstring.c_str());
 				return;
 			}
@@ -494,10 +494,7 @@ int     CGMPHelper::_SelectAcIndex(EuroScopePlugIn::CFlightPlan flightplan)
 	}
 	return -1;
 }
-void    CGMPHelper::OnFunctionCall(int FunctionId,
-	const char * sItemString,
-	POINT Pt,
-	RECT Area)
+inline void CGMPHelper::OnFunctionCall(int FunctionId,	const char * sItemString,	POINT Pt,RECT Area)
 {
 	//handle our registered functions
 	EuroScopePlugIn::CFlightPlan  fp;

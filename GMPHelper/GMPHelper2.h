@@ -199,21 +199,21 @@ public:
 	  detailed info on the input and output values can be found in the EuroScopePlugIn.h header
 	*/
 
-	/*int     _SelectAcIndex(EuroScopePlugIn::CFlightPlan flightplan);*/
-	/* This function searches our sequence for the input "flightplan" and returns the index
-	*/
+	int     _SelectAcIndex(EuroScopePlugIn::CFlightPlan flightplan); 
+		//This function searches our sequence for the input "flightplan" and returns the index
 
 
-	virtual void    CGMPHelper::OnFunctionCall(int FunctionId,
-	const char * sItemString,
-	POINT Pt,
-	RECT Area)
+
+	virtual void    OnFunctionCall(int FunctionId,
+			const char * sItemString,
+			POINT Pt,
+			RECT Area);
 
 	/*This function overrides a Euroscope function. It handles the user interface interaction. So it shows the popup menu on left click on the respective TAG fields and so on 
 	  detailed info on the input and output values can be found in the EuroScopePlugIn.h header
 	*/
 
-	//void assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan);
+	void assignCTOT(bool asap, EuroScopePlugIn::CFlightPlan);
 	/*This function is called when a CTOT should be assigned to an aircraft. It constructs the new CTOTData object and redoes the sequence
 		Input: bool asap (if an aircraft should be assigned a ctot that is as close to now as possible or at the end of the sequence)
 			   CFlightPlan flightplan (the corresponding flightplan)
@@ -229,7 +229,7 @@ public:
 	void updateListOMAA();
 	//This function is called from various other functions to do housekeeping on the actual euroscope list
 
-	CTimeSpan CGMPHelper::getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePlugIn::CFlightPlan fp2);
+	CTimeSpan getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePlugIn::CFlightPlan fp2);
 
 
 	/*This function is the heart of the implementation. It determines which separation fp2 needs to maintain to the preceeding aircraft fp1.
@@ -237,7 +237,7 @@ public:
 	*/
 
 
-	void CGMPHelper::recalculateCTOT(CTOTData inserted);
+	void recalculateCTOT(CTOTData inserted);
 
 	/* This function is called when we change the order of the sequence either by assigning an aircraft and asap ctot or by manually assigning one.
 	   The function recalculates all CTOTs that follow the "inserted" so the modified one.
