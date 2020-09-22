@@ -10,6 +10,8 @@
 #include <fstream>
 #include <filesystem>
 #include "loguru.cpp"
+#include <unordered_map>
+
 
 
 
@@ -33,7 +35,7 @@ const   int     TAG_FUNC_CTOT_ASSIGN_SEQ = 11;
 const   int     TAG_FUNC_CTOT_ASSIGN_ASAP = 13;
 const   int     TAG_FUNC_CTOT_CLEAR = 12341;
 const CTimeSpan taxitime = CTimeSpan(0, 0, 20, 0);
-RouteData data;
+std::unordered_map<std::string, RouteData> data;
 
 
 
@@ -73,17 +75,9 @@ CGMPHelper::CGMPHelper(void)
 	loguru::suggest_log_path(dir.c_str(), logpath, sizeof(logpath));
 	loguru::add_file(logpath, loguru::FileMode::Truncate, loguru::Verbosity_INFO);
 	LOG_F(INFO, "We successfully started GMPHelper. Great Success!");
-	dir += "RouteChecker.csv";
-	io::CSVReader<5, io::trim_chars<' '>, io::no_quote_escape<','>> in(dir);
-	in.read_header(io::ignore_no_column, "Dep", "Dest", "Evenodd", "Restriction", "Route");
-	std::string Dep, Dest, evenodd, LevelR, Routing;
-	while (in.read_row(Dep, Dest, evenodd, LevelR, Routing)) {
-		data.Routes.push_back(RouteTo(Dep, Dest, evenodd, LevelR, Routing));
-		data.icaos.push_back(Dest);
-	}
 	
 	//Registering our TAG items that can be added to any list in euroscope
-	RegisterTagItemType("CTOT", TAG_ITEM_CTOT);
+    RegisterTagItemType("CTOT", TAG_ITEM_CTOT);
 	RegisterTagItemType("T/O sequence", TAG_ITEM_Sequence);
 	RegisterTagItemType("TOBT", TAG_ITEM_TOBT);
 	RegisterTagItemType("RouteValid", TAG_ITEM_ROUTE_VALID);
@@ -111,9 +105,24 @@ CGMPHelper::CGMPHelper(void)
 			NULL, EuroScopePlugIn::TAG_ITEM_FUNCTION_NO);
 
 	}
-	LOG_F(INFO, "Everything registered. Ready to go!");
+	
+    LOG_F(INFO, "Everything registered. Ready to go!");
 	
 	
+	dir += "RouteChecker.csv";
+	io::CSVReader<5, io::trim_chars<' '>, io::no_quote_escape<','>> in(dir);
+	in.read_header(io::ignore_no_column, "Dep", "Dest","Evenodd", "Restriction", "Route");
+	std::string Dep, Dest, evenodd, LevelR, Routing;
+	while (in.read_row(Dep, Dest, evenodd, LevelR, Routing)) 
+	{
+		auto temp = RouteTo(Dep, Dest, evenodd, LevelR, Routing);
+		auto depicao = temp.mDEPICAO;
+		RouteData dt;
+		std::pair<std::string, RouteData> mypair (depicao, dt);
+		data.insert(mypair);
+		data.at(depicao).Routes.push_back(temp);
+		data.at(depicao).icaos.push_back(Dest);
+	}
 }
 
 
@@ -141,6 +150,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 	auto fpdata = FlightPlan.GetFlightPlanData();
 	std::string dep = fpdata.GetOrigin();
 	// handle the case that our aircraft is not in our -local- sequence yet
+
 	if ((idx = _SelectAcIndex(FlightPlan)) < 0&& ItemCode!=TAG_ITEM_ROUTE_VALID)
 	{
 		//now we check if another controller assigned a ctot we need the scratchpad string and other data for that
@@ -206,7 +216,6 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		return;
 	}
 
-
 	// switch the different tag fields
 	switch (ItemCode)
 	{
@@ -254,6 +263,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 	}
 	case TAG_ITEM_Sequence:
 	{
+
 		int seq = 0;
 		if (dep == "OMDB")
 			seq = m_sequence_OMDB[idx].sequence;
@@ -270,13 +280,14 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 	}
 	case TAG_ITEM_ROUTE_VALID:
 	{
-		if (dep != "OMDB")
+		auto fpdata = FlightPlan.GetFlightPlanData();
+		std::string icaodep = fpdata.GetOrigin();
+		if (data.find(icaodep) == data.end())
 		{
 			strcpy(sItemString, "?");
 			return;
 		}
-		auto fpdata = FlightPlan.GetFlightPlanData();
-		std::string icao = fpdata.GetDestination();
+		std::string icaodest = fpdata.GetDestination();
 		auto test = fpdata.GetPlanType();
 		if (strcmp(test,"V")==0)
 		{
@@ -284,9 +295,9 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			return;
 		}
 		bool foundRoute = false;
-		for (auto temp : data.icaos)
+		for (auto temp : data.at(icaodep).icaos)
 		{
-			if (temp == icao)
+			if (temp == icaodest)
 			{
 				std::string logstring = "Found a designated route to " + icao + " for " + FlightPlan.GetCallsign();
 				LOG_F(INFO, logstring.c_str());
@@ -298,26 +309,29 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		}
 		if (!foundRoute)
 		{
-			for (auto temp : data.icaos)
+			for (auto temp : data.at(icaodep).icaos)
 			{
-				if (temp == icao.substr(0, 2))
+				if (temp == icaodest.substr(0, 2))
 				{
+
 					icao = icao.substr(0, 2);
 					std::string logstring = "Using dummy route to " + icao + " for " + FlightPlan.GetCallsign();
 					LOG_F(INFO, logstring.c_str());
+
+					icaodest = icaodest.substr(0, 2);
+
 					foundRoute = true;
 					break;
 				}
 			}
 			if (!foundRoute)
 			{
-				for (auto temp : data.icaos)
+				for (auto temp : data.at(icaodep).icaos)
 				{
-					if (temp == icao.substr(0, 1))
+					if (temp == icaodest.substr(0, 1))
 					{
-						icao = icao.substr(0, 1);
-						std::string logstring = "Using dummy route to " + icao + " for " + FlightPlan.GetCallsign();
-						LOG_F(INFO, logstring.c_str());
+						icaodest = icaodest.substr(0, 1);
+
 						foundRoute = true;
 						break;
 					}
@@ -331,7 +345,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 				return;
 			}
 		}
-		auto dt = data.getDatafromICAO(icao);
+		auto dt = data.at(icaodep).getDatafromICAO(icaodest);
 		bool cruisevalid = false;
 		bool routevalid = false;
 		for (auto d : dt) {
@@ -346,38 +360,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 				return;
 			}	
 		}
-		if (!routevalid)
-		{
-			icao = icao.substr(0, 2);
-			dt = data.getDatafromICAO(icao);
-			for (auto d : dt) {
-				std::string tmp = fpdata.GetRoute();
-				std::regex rule("\\/(.+?)(\\\s+?)");
-				tmp = std::regex_replace(tmp, rule, " ");
-				routevalid = d.isRouteValid(tmp);
-				if (cruisevalid && routevalid)
-				{
-					strcpy(sItemString, "");
-					return;
-				}
-			}
-		}
-		if (!routevalid)
-		{
-			icao = icao.substr(0, 1);
-			dt = data.getDatafromICAO(icao);
-			for (auto d : dt) {
-				std::string tmp = fpdata.GetRoute();
-				std::regex rule("\\/(.+?)(\\\s+?)");
-				tmp = std::regex_replace(tmp, rule, " ");
-				routevalid = d.isRouteValid(tmp);
-				if (cruisevalid && routevalid)
-				{
-					strcpy(sItemString, "");
-					return;
-				}
-			}
-		}
+		
 		if (cruisevalid && !routevalid) strcpy(sItemString, "R");
 		else if (routevalid && !cruisevalid) strcpy(sItemString, "L");
 		else {
@@ -396,11 +379,14 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 //	auto fpdata = FlightPlan.GetFlightPlanData();
 //	CHECK_F(fpdata.GetOrigin() ==NULL);
 //	//std::string logstring = "Disconnection found for " + *FlightPlan.GetCallsign();
+//
 //	int idx = _SelectAcIndex(FlightPlan);
 //	if (idx < 0) return;
 //	if (!FlightPlan.IsValid())
 //		return;
-//	
+//
+//	auto fpdata = FlightPlan.GetFlightPlanData();
+//
 //	std::string dep = fpdata.GetOrigin();
 //	//the usual remove erase thing in c++
 //	try {
@@ -443,6 +429,7 @@ inline  bool CGMPHelper::OnCompileCommand(const char * sCommandLine)
 	}
 	return false;
 }
+
 
 int     CGMPHelper::_SelectAcIndex(EuroScopePlugIn::CFlightPlan flightplan)
 {
@@ -1372,6 +1359,7 @@ CTimeSpan CGMPHelper::getIncrement(EuroScopePlugIn::CFlightPlan fp1, EuroScopePl
 
 	return increment;
 }
+
 
 
 
