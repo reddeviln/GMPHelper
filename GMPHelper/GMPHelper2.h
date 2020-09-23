@@ -60,26 +60,43 @@ public:
 	bool isCruiseValid(int Flightlevel)
 	{
 		bool returnval = false;
-		if (this->mEvenOdd == "ODD")
+		
+		if (this->mLevelR.empty())
 		{
-			if ((Flightlevel / 1000) % 2 == 1) returnval = true;
-			else return false;
+			if (this->mEvenOdd == "ODD")
+			{
+				if ((Flightlevel / 1000) % 2 == 1) return true;
+				else return false;
+			}
+			if (this->mEvenOdd == "EVEN")
+			{
+				if ((Flightlevel / 1000) % 2 == 0) return true;
+				else return false;
+			}
 		}
-		if (this->mEvenOdd == "EVEN")
+		else
 		{
-			if ((Flightlevel / 1000) % 2 == 0) returnval = true;
-			else return false;
+			
+			if (this->mLevelR.at(0) == '<')
+			{
+				std::string restr = this->mLevelR.substr(1, 3);
+				if (this->mEvenOdd == "ODD")
+				{
+					if (((Flightlevel / 1000) % 2 == 1) && Flightlevel <= std::stoi(restr)) return true;
+					else return false;
+				}
+				if (this->mEvenOdd == "EVEN")
+				{
+					if (((Flightlevel / 1000) % 2 == 0) && Flightlevel <= std::stoi(restr)*100) return true;
+					else return false;
+				}
+			}
+			else
+			{
+				int restr = std::stoi(this->mLevelR);
+				return (Flightlevel == restr*100);
+			}
 		}
-		if (this->mLevelR == "<260")
-		{
-			if (((Flightlevel / 1000) % 2 == 0) && Flightlevel <= 26000) return true;
-			else return false;
-		}
-		if (this->mLevelR == "110")
-		{
-			if (Flightlevel == 11000) return true;
-		}
-
 		return returnval;
 	}
 	bool isRouteValid(std::string Route)
