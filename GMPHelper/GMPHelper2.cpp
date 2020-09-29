@@ -111,7 +111,7 @@ CGMPHelper::CGMPHelper(void)
 	
 	dir += "RouteChecker.csv";
 	io::CSVReader<5, io::trim_chars<' '>, io::no_quote_escape<','>> in(dir);
-	in.read_header(io::ignore_no_column, "Dep", "Dest","Evenodd", "Restriction", "Route");
+	in.read_header(io::ignore_extra_column, "Dep", "Dest","Evenodd", "Restriction", "Route");
 	std::string Dep, Dest, evenodd, LevelR, Routing;
 	while (in.read_row(Dep, Dest, evenodd, LevelR, Routing)) 
 	{
@@ -160,19 +160,21 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 
 		//check if the remarks contains the phrase /CTOT
 		test = strstr(remarks, "/CTOT");
+		
 		if (test)
 		{
+			CTime temp;
+			temp = CTime::GetCurrentTime();
+			tm t, t1;
+			temp.GetGmtTm(&t);
+			temp.GetLocalTm(&t1);
 			std::string callsign = FlightPlan.GetCallsign();
 			std::string logstring = "We already found a valid CTOT for " + callsign;
 			LOG_F(INFO, logstring.c_str());
 			//if yes then a controller already assigned a ctot and the estimated dep time on the flightplan is the ctot
 			auto ctot = fpdata.GetEstimatedDepartureTime();
 			CTOTData newone;
-			CTime temp;
-			temp = CTime::GetCurrentTime();
-			tm t, t1;
-			temp.GetGmtTm(&t);
-			temp.GetLocalTm(&t1);
+			
 
 			//calculating the timezone 
 			CTimeSpan diff = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec) - CTime(1900 + t1.tm_year, t1.tm_mon + 1, t1.tm_mday, t1.tm_hour, t1.tm_min, t1.tm_sec);
@@ -254,11 +256,27 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			TOBT = m_sequence_OMDW[idx].TOBT;
 		if (dep == "OMAA")
 			TOBT = m_sequence_OMAA[idx].TOBT;
+		CTime curr;
+		curr = CTime::GetCurrentTime();
+		tm currt, currt1;
+		curr.GetGmtTm(&currt);
 		CString temp1;
 		tm t;
 		TOBT.GetGmtTm(&t);
 		temp1.Format("%.4d", t.tm_hour * 100 + t.tm_min);
 		strcpy(sItemString, temp1);
+		std::string status = FlightPlan.GetGroundState();
+		if (TOBT - curr < CTimeSpan(0, 0, 5, 0) && status.empty())
+		{
+			if (TOBT > curr)
+			{
+				*pColorCode = EuroScopePlugIn::TAG_COLOR_RGB_DEFINED;
+				*pRGB = RGB(255, 191, 0);
+			}
+			else
+				*pColorCode = EuroScopePlugIn::TAG_COLOR_EMERGENCY;
+		}
+
 		break;
 	}
 	case TAG_ITEM_Sequence:
@@ -1225,13 +1243,14 @@ void CGMPHelper::recalculateCTOT(CTOTData inserted)
 		//iterate over the sequence starting from "inserted"
 		for (auto &it = pos; it != m_sequence_OMDB.end() - 1; it++)
 		{
+			CTime curr = CTime::GetCurrentTime();
 			CTOTData temp1 = *it;
 			CString test = temp1.flightplan.GetCallsign();
 			CTOTData &temp2 = *(it + 1);
 			CString test2 = temp2.flightplan.GetCallsign();
 			if (temp2.manual) continue;
 			CTimeSpan inc = getIncrement(temp1.flightplan, temp2.flightplan);
-			temp2.CTOT = temp1.CTOT + inc;
+			temp2.CTOT = std::max(temp2.CTOT,temp1.CTOT + inc);
 			temp2.TOBT = temp2.CTOT - taxitime;
 		}
 	}
@@ -1246,13 +1265,14 @@ void CGMPHelper::recalculateCTOT(CTOTData inserted)
 		//iterate over the sequence starting from "inserted"
 		for (auto &it = pos; it != m_sequence_OMSJ.end() - 1; it++)
 		{
+			CTime curr = CTime::GetCurrentTime();
 			CTOTData temp1 = *it;
 			CString test = temp1.flightplan.GetCallsign();
 			CTOTData &temp2 = *(it + 1);
 			CString test2 = temp2.flightplan.GetCallsign();
 			if (temp2.manual) continue;
 			CTimeSpan inc = getIncrement(temp1.flightplan, temp2.flightplan);
-			temp2.CTOT = temp1.CTOT + inc;
+			temp2.CTOT = std::max(temp2.CTOT, temp1.CTOT + inc);
 			temp2.TOBT = temp2.CTOT - taxitime;
 		}
 	}
@@ -1267,13 +1287,14 @@ void CGMPHelper::recalculateCTOT(CTOTData inserted)
 		//iterate over the sequence starting from "inserted"
 		for (auto &it = pos; it != m_sequence_OMDW.end() - 1; it++)
 		{
+			CTime curr = CTime::GetCurrentTime();
 			CTOTData temp1 = *it;
 			CString test = temp1.flightplan.GetCallsign();
 			CTOTData &temp2 = *(it + 1);
 			CString test2 = temp2.flightplan.GetCallsign();
 			if (temp2.manual) continue;
 			CTimeSpan inc = getIncrement(temp1.flightplan, temp2.flightplan);
-			temp2.CTOT = temp1.CTOT + inc;
+			temp2.CTOT = std::max(temp2.CTOT, temp1.CTOT + inc);
 			temp2.TOBT = temp2.CTOT - taxitime;
 		}
 	}
@@ -1288,13 +1309,14 @@ void CGMPHelper::recalculateCTOT(CTOTData inserted)
 		//iterate over the sequence starting from "inserted"
 		for (auto &it = pos; it != m_sequence_OMAA.end() - 1; it++)
 		{
+			CTime curr = CTime::GetCurrentTime();
 			CTOTData temp1 = *it;
 			CString test = temp1.flightplan.GetCallsign();
 			CTOTData &temp2 = *(it + 1);
 			CString test2 = temp2.flightplan.GetCallsign();
 			if (temp2.manual) continue;
 			CTimeSpan inc = getIncrement(temp1.flightplan, temp2.flightplan);
-			temp2.CTOT = temp1.CTOT + inc;
+			temp2.CTOT = std::max(temp2.CTOT, temp1.CTOT + inc);
 			temp2.TOBT = temp2.CTOT - taxitime;
 		}
 	}
