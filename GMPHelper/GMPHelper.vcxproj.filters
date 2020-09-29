@@ -59,6 +59,9 @@
     <ClInclude Include="routing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="I:\Downloads\loguru-master\loguru.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="GMPHelper.rc">
