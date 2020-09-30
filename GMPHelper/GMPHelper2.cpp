@@ -512,6 +512,7 @@ int     CGMPHelper::_SelectAcIndex(EuroScopePlugIn::CFlightPlan flightplan)
 	}
 	return -1;
 }
+
 inline void CGMPHelper::OnFunctionCall(int FunctionId,	const char * sItemString,	POINT Pt,RECT Area)
 {
 	//handle our registered functions
