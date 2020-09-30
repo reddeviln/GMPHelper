@@ -101,10 +101,17 @@ public:
 	}
 	bool isRouteValid(std::string Route)
 	{
-		auto temp = makeAirwaysUnique(Route);
+		auto temp = makeAirwaysUnique(findAndReplaceAll(Route, " DCT ", " "));
 		auto check = temp.find(mRoute);
 		if (check == std::string::npos)
-			return false;
+		{
+			auto temp1 = findAndReplaceAll(mRoute, " DCT ", " ");
+			if (temp.find(temp1) == std::string::npos)
+				return false;
+			else
+				return true;
+		}
+			
 		else return true;
 	}
 	std::string makeAirwaysUnique(std::string Route)
@@ -135,10 +142,38 @@ public:
 		}
 		return result;
 	}
-	void RemoveDuplicatesInVector(std::vector<std::string> & vec)
+	std::vector<std::string> RemoveDuplicatesInVector(std::vector<std::string> vec)
 	{
 		std::set<std::string> values;
-		vec.erase(std::remove_if(vec.begin(), vec.end(), [&](const std::string & value) { return !values.insert(value).second; }), vec.end());
+		//vec.erase(std::remove_if(vec.begin(), vec.end(), [&](const std::string & value) { return !values.insert(value).second; }), vec.end());
+		for (auto value: vec)
+		{
+			auto check = values.find(value);
+			if(values.end() == check)
+				values.insert(value);
+			else
+			{
+				auto check1 = std::find(vec.begin(), vec.end(), *check);
+				if (check1 != vec.end() && *(check1 + 2) == *check)
+					vec.erase(std::remove(vec.begin(),check1+1,*check1));
+			}
+		}
+		vec.shrink_to_fit();
+		return vec;
+	}
+	std::string findAndReplaceAll(std::string data, std::string toSearch, std::string replaceStr)
+	{
+		// Get the first occurrence
+		size_t pos = data.find(toSearch);
+		// Repeat till end is reached
+		while (pos != std::string::npos)
+		{
+			// Replace this occurrence of Sub String
+			data.replace(pos, toSearch.size(), replaceStr);
+			// Get the next occurrence from the current position
+			pos = data.find(toSearch, pos + replaceStr.size());
+		}
+		return data;
 	}
 };
 
@@ -196,6 +231,7 @@ public:
 		}
 		return false;
 	}
+	
 
 	//virtual void OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan);
 
