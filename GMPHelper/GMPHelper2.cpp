@@ -33,6 +33,7 @@ const   int     TAG_FUNC_CTOT_ASSIGN = 2;
 const   int     TAG_FUNC_CTOT_MANUAL_FINISH = 10;
 const   int     TAG_FUNC_CTOT_ASSIGN_SEQ = 11;
 const   int     TAG_FUNC_CTOT_ASSIGN_ASAP = 13;
+const   int     TAG_FUNC_ROUTING = 15;
 const   int     TAG_FUNC_CTOT_CLEAR = 12341;
 const CTimeSpan taxitime = CTimeSpan(0, 0, 20, 0);
 std::unordered_map<std::string, RouteData> data;
@@ -85,6 +86,7 @@ CGMPHelper::CGMPHelper(void)
 	//Registering our two functions the first one opens a popup menu the second one lets the user enter a ctot manually
 	RegisterTagItemFunction("Assign CTOT", TAG_FUNC_CTOT_ASSIGN);
 	RegisterTagItemFunction("Edit CTOT", TAG_FUNC_CTOT_MANUAL);
+	RegisterTagItemFunction("Get routes", TAG_FUNC_ROUTING);
 
 	//Registering our list that is displayed in euroscope
 	m_TOSequenceList = RegisterFpList("T/O Sequence List");
@@ -268,7 +270,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		std::string status = FlightPlan.GetGroundState();
 		if (TOBT - curr < CTimeSpan(0, 0, 5, 0) && status.empty())
 		{
-			if (TOBT > curr)
+			if (TOBT + CTimeSpan(0,0,5,0) > curr)
 			{
 				*pColorCode = EuroScopePlugIn::TAG_COLOR_RGB_DEFINED;
 				*pRGB = RGB(255, 191, 0);
@@ -677,7 +679,7 @@ inline void CGMPHelper::OnFunctionCall(int FunctionId,	const char * sItemString,
 		break;
 	}
 	case TAG_FUNC_CTOT_ASSIGN: // TAG function
-
+	{
 		// start a popup list
 		OpenPopupList(Area, "Assign CTOT", 1);
 
@@ -691,7 +693,7 @@ inline void CGMPHelper::OnFunctionCall(int FunctionId,	const char * sItemString,
 		AddPopupListElement("Clear", "",
 			TAG_FUNC_CTOT_CLEAR);
 		break;
-
+	}
 	case TAG_FUNC_CTOT_ASSIGN_SEQ: // user selected assign in sequence
 	{
 		//dont assign if we already have assigned one. Safeguards against missclicks
@@ -768,7 +770,7 @@ inline void CGMPHelper::OnFunctionCall(int FunctionId,	const char * sItemString,
 		break;
 	}
 	case TAG_FUNC_CTOT_CLEAR: // clear the ctot
-
+	{
 		// simply clear
 		if (idx < 0) break;
 		auto cadata = fp.GetFlightPlanData();
@@ -825,6 +827,44 @@ inline void CGMPHelper::OnFunctionCall(int FunctionId,	const char * sItemString,
 			else recalculateCTOT(m_sequence_OMAA[idx - 1]);
 			break;
 		}
+	}
+	case TAG_FUNC_ROUTING:
+	{
+		std::string handlername = "Route for ";
+		handlername += fp.GetCallsign();
+		std::string dest = fpdata.GetDestination();
+		auto routes = data[fpdata.GetOrigin()].getDatafromICAO(dest);
+		if (routes.empty())
+		{
+			routes = data[fpdata.GetOrigin()].getDatafromICAO(dest.substr(0, 2));
+			if (routes.empty())
+			{
+				routes = data[fpdata.GetOrigin()].getDatafromICAO(dest.substr(0, 1));
+				if(routes.empty())
+					DisplayUserMessage(handlername.c_str(), "", "No route found", true, true, true, true, true);
+			}
+			
+		}
+		for (auto temp : routes)
+		{
+			std::string routing = "Valid routes to ";
+			routing += dest;
+			routing += ": ";
+			routing += temp.mRoute;
+			routing += ". Flightlevel is ";
+			if (temp.mLevelR.empty())
+				routing += "not restricted";
+			else
+			{
+				routing += "restricted to ";
+				routing += temp.mLevelR;
+			}
+			routing += ". The direction of flight dictates an ";
+			routing += temp.mEvenOdd;
+			routing += " cruise level.";
+			DisplayUserMessage(handlername.c_str(), "", routing.c_str(), true, true, true, true, true);
+		}
+	}
 
 	}// switch by the function ID
 }
