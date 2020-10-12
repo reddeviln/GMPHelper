@@ -33,10 +33,10 @@ const   int     TAG_FUNC_CTOT_ASSIGN = 2;
 const   int     TAG_FUNC_CTOT_MANUAL_FINISH = 10;
 const   int     TAG_FUNC_CTOT_ASSIGN_SEQ = 11;
 const   int     TAG_FUNC_CTOT_ASSIGN_ASAP = 13;
-const   int     TAG_FUNC_ROUTING = 15;
+
 const   int     TAG_FUNC_CTOT_CLEAR = 12341;
 const CTimeSpan taxitime = CTimeSpan(0, 0, 20, 0);
-std::unordered_map<std::string, RouteData> data;
+
 
 
 
@@ -86,7 +86,7 @@ CGMPHelper::CGMPHelper(void)
 	//Registering our two functions the first one opens a popup menu the second one lets the user enter a ctot manually
 	RegisterTagItemFunction("Assign CTOT", TAG_FUNC_CTOT_ASSIGN);
 	RegisterTagItemFunction("Edit CTOT", TAG_FUNC_CTOT_MANUAL);
-	RegisterTagItemFunction("Get routes", TAG_FUNC_ROUTING);
+
 
 	//Registering our list that is displayed in euroscope
 	m_TOSequenceList = RegisterFpList("T/O Sequence List");
@@ -111,20 +111,6 @@ CGMPHelper::CGMPHelper(void)
     LOG_F(INFO, "Everything registered. Ready to go!");
 	
 	
-	dir += "RouteChecker.csv";
-	io::CSVReader<5, io::trim_chars<' '>, io::no_quote_escape<','>> in(dir);
-	in.read_header(io::ignore_extra_column, "Dep", "Dest","Evenodd", "Restriction", "Route");
-	std::string Dep, Dest, evenodd, LevelR, Routing;
-	while (in.read_row(Dep, Dest, evenodd, LevelR, Routing)) 
-	{
-		auto temp = RouteTo(Dep, Dest, evenodd, LevelR, Routing);
-		auto depicao = temp.mDEPICAO;
-		RouteData dt;
-		std::pair<std::string, RouteData> mypair (depicao, dt);
-		data.insert(mypair);
-		data.at(depicao).Routes.push_back(temp);
-		data.at(depicao).icaos.push_back(Dest);
-	}
 }
 
 
@@ -153,16 +139,16 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 	std::string dep = fpdata.GetOrigin();
 	// handle the case that our aircraft is not in our -local- sequence yet
 
-	if ((idx = _SelectAcIndex(FlightPlan)) < 0&& ItemCode!=TAG_ITEM_ROUTE_VALID)
+	if ((idx = _SelectAcIndex(FlightPlan)) < 0)
 	{
 		//now we check if another controller assigned a ctot we need the scratchpad string and other data for that
-		
+
 		auto remarks = fpdata.GetRemarks();
 		const char* test = NULL;
 
 		//check if the remarks contains the phrase /CTOT
 		test = strstr(remarks, "/CTOT");
-		
+
 		if (test)
 		{
 			CTime temp;
@@ -176,11 +162,11 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			//if yes then a controller already assigned a ctot and the estimated dep time on the flightplan is the ctot
 			auto ctot = fpdata.GetEstimatedDepartureTime();
 			CTOTData newone;
-			
+
 
 			//calculating the timezone 
 			CTimeSpan diff = CTime(1900 + t.tm_year, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec) - CTime(1900 + t1.tm_year, t1.tm_mon + 1, t1.tm_mday, t1.tm_hour, t1.tm_min, t1.tm_sec);
-			
+
 			//casting our string to int
 			int input = atoi(ctot);
 
@@ -214,8 +200,8 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 				m_sequence_OMDB.push_back(newone);
 				std::sort(m_sequence_OMDB.begin(), m_sequence_OMDB.end());
 			}
-			
-			
+
+
 		}
 		return;
 	}
@@ -227,7 +213,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 	{
 		CTime CTOT;
 		//just take the stored CTOT and format it to look nice
-		if(dep == "OMDB")
+		if (dep == "OMDB")
 			CTOT = m_sequence_OMDB[idx].CTOT;
 		if (dep == "OMSJ")
 			CTOT = m_sequence_OMSJ[idx].CTOT;
@@ -270,7 +256,7 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		std::string status = FlightPlan.GetGroundState();
 		if (TOBT - curr < CTimeSpan(0, 0, 5, 0) && status.empty())
 		{
-			if (TOBT + CTimeSpan(0,0,5,0) > curr)
+			if (TOBT + CTimeSpan(0, 0, 5, 0) > curr)
 			{
 				*pColorCode = EuroScopePlugIn::TAG_COLOR_RGB_DEFINED;
 				*pRGB = RGB(255, 191, 0);
@@ -298,161 +284,11 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 		strcpy(sItemString, temp3);
 		break;
 	}
-	case TAG_ITEM_ROUTE_VALID:
-	{
-		auto fpdata = FlightPlan.GetFlightPlanData();
-		std::string icaodep = fpdata.GetOrigin();
-		if (data.find(icaodep) == data.end())
-		{
-			strcpy(sItemString, "?");
-			return;
-		}
-		std::string icaodest = fpdata.GetDestination();
-		auto test = fpdata.GetPlanType();
-		if (strcmp(test,"V")==0)
-		{
-			strcpy(sItemString, "");
-			return;
-		}
-		bool foundRoute = false;
-		for (auto temp : data.at(icaodep).icaos)
-		{
-			if (temp == icaodest)
-			{
-				std::string logstring = "Found a designated route to " + icaodest + " for " + FlightPlan.GetCallsign();
-				LOG_F(INFO, logstring.c_str());
 
-				foundRoute = true;
-				break;
-			}
-
-		}
-		if (!foundRoute)
-		{
-			for (auto temp : data.at(icaodep).icaos)
-			{
-				if (temp == icaodest.substr(0, 2))
-				{
-
-					icaodest = icaodest.substr(0, 2);
-					std::string logstring = "Using dummy route to " + icaodest + " for " + FlightPlan.GetCallsign();
-					LOG_F(INFO, logstring.c_str());
-
-					icaodest = icaodest.substr(0, 2);
-
-					foundRoute = true;
-					break;
-				}
-			}
-			if (!foundRoute)
-			{
-				for (auto temp : data.at(icaodep).icaos)
-				{
-					if (temp == icaodest.substr(0, 1))
-					{
-						icaodest = icaodest.substr(0, 1);
-
-						foundRoute = true;
-						break;
-					}
-				}
-			}
-			if (!foundRoute)
-			{
-				strcpy(sItemString, "?");
-				std::string logstring = "No (dummy) route to " + icaodest + " found for " + FlightPlan.GetCallsign();
-				LOG_F(INFO, logstring.c_str());
-				return;
-			}
-		}
-		auto dt = data.at(icaodep).getDatafromICAO(icaodest);
-		bool cruisevalid = false;
-		bool routevalid = false;
-		for (auto d : dt) {
-			std::string tmp = fpdata.GetRoute();
-			std::regex rule("\\/(.+?)(\\\s+?)");
-			tmp = std::regex_replace(tmp, rule, " ");
-			
-			if (!routevalid)
-			{
-				routevalid = d.isRouteValid(tmp);
-			}
-			else
-			{
-				cruisevalid = d.isCruiseValid(FlightPlan.GetFinalAltitude());
-				if (cruisevalid && routevalid)
-				{
-					strcpy(sItemString, "");
-					return;
-				}
-				else {
-					strcpy(sItemString, "L");
-				}
-
-			}
-			cruisevalid = d.isCruiseValid(FlightPlan.GetFinalAltitude());
-			
-				
-		}
-		
-		if (cruisevalid && !routevalid) strcpy(sItemString, "R");
-		else if (routevalid && !cruisevalid) strcpy(sItemString, "L");
-		else {
-			strcpy(sItemString, "X");
-		}
-		
-		*pColorCode = EuroScopePlugIn::TAG_COLOR_EMERGENCY;
-	}
 	}
 }
 
-//void CGMPHelper::OnFlightPlanDisconnect(EuroScopePlugIn::CFlightPlan FlightPlan)
-//{
-//	//nothing fancy just remove the Flightplan from everything
-//	
-//	auto fpdata = FlightPlan.GetFlightPlanData();
-//	CHECK_F(fpdata.GetOrigin() ==NULL);
-//	//std::string logstring = "Disconnection found for " + *FlightPlan.GetCallsign();
-//
-//	int idx = _SelectAcIndex(FlightPlan);
-//	if (idx < 0) return;
-//	if (!FlightPlan.IsValid())
-//		return;
-//
-//	auto fpdata = FlightPlan.GetFlightPlanData();
-//
-//	std::string dep = fpdata.GetOrigin();
-//	//the usual remove erase thing in c++
-//	try {
-//		if (m_sequence_OMDB.at(idx).flightplan.GetCallsign() == FlightPlan.GetCallsign())
-//			m_sequence_OMDB.erase(std::remove(m_sequence_OMDB.begin(), m_sequence_OMDB.end(), m_sequence_OMDB.at(idx)), m_sequence_OMDB.end());
-//	}
-//	catch (...) {}
-//	try {
-//		if (m_sequence_OMSJ.at(idx).flightplan.GetCallsign() == FlightPlan.GetCallsign())
-//			m_sequence_OMSJ.erase(std::remove(m_sequence_OMSJ.begin(), m_sequence_OMSJ.end(), m_sequence_OMSJ.at(idx)), m_sequence_OMSJ.end());
-//	}
-//	catch (...) {}
-//	try {
-//		if (m_sequence_OMDW.at(idx).flightplan.GetCallsign() == FlightPlan.GetCallsign())
-//			m_sequence_OMDW.erase(std::remove(m_sequence_OMDW.begin(), m_sequence_OMDW.end(), m_sequence_OMDW.at(idx)), m_sequence_OMDW.end());
-//	}
-//	catch (...) {}
-//	try {
-//		if (m_sequence_OMAA.at(idx).flightplan.GetCallsign() == FlightPlan.GetCallsign())
-//			m_sequence_OMAA.erase(std::remove(m_sequence_OMAA.begin(), m_sequence_OMAA.end(), m_sequence_OMAA.at(idx)), m_sequence_OMAA.end());
-//	}
-//	catch (...) {}
-//	m_TOSequenceList.RemoveFpFromTheList(FlightPlan);
-//	updateListOMDB();
-//	updateListOMSJ();
-//	updateListOMDW();
-//	updateListOMAA();
-//	recalculateCTOT(*(m_sequence_OMDB.begin()));
-//	recalculateCTOT(*(m_sequence_OMSJ.begin()));
-//	recalculateCTOT(*(m_sequence_OMDW.begin()));
-//	recalculateCTOT(*(m_sequence_OMAA.begin()));
-//}
+
 inline  bool CGMPHelper::OnCompileCommand(const char * sCommandLine)
 {
 	//show the t/o sequence list if we type the command
@@ -842,43 +678,7 @@ inline void CGMPHelper::OnFunctionCall(int FunctionId,	const char * sItemString,
 			break;
 		}
 	}
-	case TAG_FUNC_ROUTING:
-	{
-		std::string handlername = "Route for ";
-		handlername += fp.GetCallsign();
-		std::string dest = fpdata.GetDestination();
-		auto routes = data[fpdata.GetOrigin()].getDatafromICAO(dest);
-		if (routes.empty())
-		{
-			routes = data[fpdata.GetOrigin()].getDatafromICAO(dest.substr(0, 2));
-			if (routes.empty())
-			{
-				routes = data[fpdata.GetOrigin()].getDatafromICAO(dest.substr(0, 1));
-				if(routes.empty())
-					DisplayUserMessage(handlername.c_str(), "", "No route found", true, true, true, true, true);
-			}
-			
-		}
-		for (auto temp : routes)
-		{
-			std::string routing = "Valid routes to ";
-			routing += dest;
-			routing += ": ";
-			routing += temp.mRoute;
-			routing += ". Flightlevel is ";
-			if (temp.mLevelR.empty())
-				routing += "not restricted";
-			else
-			{
-				routing += "restricted to ";
-				routing += temp.mLevelR;
-			}
-			routing += ". The direction of flight dictates an ";
-			routing += temp.mEvenOdd;
-			routing += " cruise level.";
-			DisplayUserMessage(handlername.c_str(), "", routing.c_str(), true, true, true, true, true);
-		}
-	}
+	
 
 	}// switch by the function ID
 }
