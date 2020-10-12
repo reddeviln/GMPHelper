@@ -372,13 +372,27 @@ void CGMPHelper::OnGetTagItem(EuroScopePlugIn::CFlightPlan FlightPlan,
 			std::string tmp = fpdata.GetRoute();
 			std::regex rule("\\/(.+?)(\\\s+?)");
 			tmp = std::regex_replace(tmp, rule, " ");
-			cruisevalid = d.isCruiseValid(FlightPlan.GetFinalAltitude());
-			routevalid = d.isRouteValid(tmp);
-			if( cruisevalid && routevalid )
+			
+			if (!routevalid)
 			{
-				strcpy(sItemString, "");
-				return;
-			}	
+				routevalid = d.isRouteValid(tmp);
+			}
+			else
+			{
+				cruisevalid = d.isCruiseValid(FlightPlan.GetFinalAltitude());
+				if (cruisevalid && routevalid)
+				{
+					strcpy(sItemString, "");
+					return;
+				}
+				else {
+					strcpy(sItemString, "L");
+				}
+
+			}
+			cruisevalid = d.isCruiseValid(FlightPlan.GetFinalAltitude());
+			
+				
 		}
 		
 		if (cruisevalid && !routevalid) strcpy(sItemString, "R");
