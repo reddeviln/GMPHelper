@@ -631,7 +631,7 @@ inline void CGMPHelper::OnFunctionCall(int FunctionId,	const char * sItemString,
 		test = strstr(remarks, "/CTOT");
 		if (test)
 		{
-			//find and replace /CTOT from scratchpad
+			//find and replace /CTOT from remarks
 			temp = std::regex_replace(temp, std::regex("\\/CTOT"), "");
 			cadata.SetRemarks(temp.c_str());
 			cadata.AmendFlightPlan();
